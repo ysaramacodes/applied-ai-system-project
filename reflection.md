@@ -2,6 +2,8 @@
 
 ## 1. System Design
 
+The three options a user should be able to do is add a pet, schedule a walk and see today's tasks
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.

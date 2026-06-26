@@ -1,0 +1,67 @@
+classDiagram
+    class Owner {
+        +String name
+        +String contactInfo
+        +List availability
+        +List preferences
+        +addPet()
+        +createTask()
+        +setAvailability()
+        +setPreferences()
+        +generatePlan()
+    }
+
+    class Pet {
+        +String name
+        +String breed
+        +int age
+        +String sex
+        +List healthConditions
+        +List medications
+        +String emergencyContact
+        +List activities
+        +String grooming
+        +eat()
+        +sleep()
+        +walk()
+        +takeMedication()
+        +play()
+        +potty()
+        +groom()
+    }
+
+    class Task {
+        +String title
+        +String type
+        +int duration
+        +String priority
+        +String recurrence
+        +String status
+        +Date deadline
+        +String preferredTimeSlot
+        +schedule()
+        +reschedule()
+        +mark_complete()
+        +cancel()
+        +is_recurring()
+        +is_conflicting()
+    }
+
+    class Schedule {
+        +Date date
+        +String day
+        +List availability
+        +List scheduledSlots
+        +int totalDuration
+        +addScheduledTaskEntry()
+        +removeScheduledEntry()
+        +modifySlot()
+        +getSlots()
+        +validate()
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Owner "1" --> "*" Task : creates
+    Schedule "1" --> "*" Task : contains
+    Schedule "1" --> "1" Owner : for
+    Schedule "1" --> "*" Pet : considers
