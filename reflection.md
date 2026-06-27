@@ -8,12 +8,13 @@ The three options a user should be able to do is add a pet, schedule a walk and 
 
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
+    I created a Pet, Owner, Task and Schedule class. The Pet class responsibilities was ti store the details about the pet. The Owner class holds their contact info of the pet owner incase of an emergency. The Task class handles lifecycle activities. The schedule class creates a schedule based off ther owners availability and pet needs, etc.
 
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
-
+I changed my Task class. In the beginning it had no reference to pets which is wrong because each task belongs to a specific pet as they all have unique needs.
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

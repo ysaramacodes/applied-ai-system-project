@@ -4,7 +4,7 @@ A pet care scheduling assistant for busy owners.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 
 
@@ -20,6 +20,16 @@ class Pet:
     emergency_contact: str = ""
     activities: List[str] = field(default_factory=list)
     grooming: str = ""
+    tasks: List["Task"] = field(default_factory=list)
+
+    def add_task(self, task: "Task") -> None:
+        """Assign a task to this pet."""
+        task.pet = self
+        self.tasks.append(task)
+
+    def remove_task(self, task_id: str) -> None:
+        """Remove a task from this pet."""
+        self.tasks = [task for task in self.tasks if task.id != task_id]
 
     def eat(self) -> None:
         """Record feeding event."""
@@ -52,58 +62,76 @@ class Pet:
 
 @dataclass
 class Task:
-    """Represents a care task for a pet."""
-    title: str
-    type: str
-    duration: int
-    priority: str
-    recurrence: str = ""
-    status: str = "pending"
-    deadline: Optional[date] = None
-    preferred_time_slot: str = ""
+    """Represents a single pet care activity."""
+    description: str
+    time: Optional[datetime] = None
+    duration: int = 0
+    frequency: str = ""
+    completion_status: bool = False
+    pet: Optional[Pet] = None
     id: str = ""
+    preferred_time_slot: str = ""
+    scheduled_start: Optional[datetime] = None
+    scheduled_end: Optional[datetime] = None
+    assigned_to: Optional[str] = None
     notes: List[str] = field(default_factory=list)
 
     def schedule(self, start_time: datetime, end_time: datetime) -> None:
-        """Schedule the task to a specific time slot."""
-        pass
+        """Schedule the task for a time slot."""
+        if end_time <= start_time:
+            raise ValueError("End time must be after start time.")
+        self.scheduled_start = start_time
+        self.scheduled_end = end_time
+        self.time = start_time
+        self.completion_status = False
 
     def reschedule(self, new_start: datetime, new_end: datetime) -> None:
         """Reschedule the task to a different time."""
-        pass
+        self.schedule(new_start, new_end)
 
     def mark_complete(self, completed_time: datetime, notes: str = "") -> None:
         """Mark the task as completed."""
-        self.status = "completed"
+        self.completion_status = True
+        self.scheduled_end = completed_time
         if notes:
             self.notes.append(notes)
 
     def cancel(self, reason: str = "") -> None:
         """Cancel the task."""
-        self.status = "cancelled"
+        self.completion_status = False
         if reason:
             self.notes.append(f"Cancelled: {reason}")
 
     def is_recurring(self) -> bool:
-        """Check if task is recurring."""
-        return bool(self.recurrence)
+        """Return whether this task is recurring."""
+        return bool(self.frequency)
 
     def is_conflicting(self, other: "Task") -> bool:
-        """Check for conflicts with another task."""
-        return False
+        """Check whether this task conflicts with another scheduled task."""
+        if not self.scheduled_start or not self.scheduled_end:
+            return False
+        if not other.scheduled_start or not other.scheduled_end:
+            return False
+        return not (
+            self.scheduled_end <= other.scheduled_start
+            or self.scheduled_start >= other.scheduled_end
+        )
 
     def to_dict(self) -> dict:
         """Serialize task to dictionary."""
         return {
             "id": self.id,
-            "title": self.title,
-            "type": self.type,
+            "description": self.description,
+            "time": self.time.isoformat() if self.time else None,
             "duration": self.duration,
-            "priority": self.priority,
-            "recurrence": self.recurrence,
-            "status": self.status,
-            "deadline": str(self.deadline) if self.deadline else None,
+            "frequency": self.frequency,
+            "completion_status": self.completion_status,
+            "pet": self.pet.name if self.pet else None,
             "preferred_time_slot": self.preferred_time_slot,
+            "scheduled_start": self.scheduled_start.isoformat() if self.scheduled_start else None,
+            "scheduled_end": self.scheduled_end.isoformat() if self.scheduled_end else None,
+            "assigned_to": self.assigned_to,
+            "notes": self.notes,
         }
 
 
@@ -115,15 +143,21 @@ class Owner:
     availability: List[str] = field(default_factory=list)
     preferences: dict = field(default_factory=dict)
     pets: List[Pet] = field(default_factory=list)
-    tasks: List[Task] = field(default_factory=list)
+
+    @property
+    def tasks(self) -> List[Task]:
+        """Return all tasks assigned to the owner's pets."""
+        return [task for pet in self.pets for task in pet.tasks]
 
     def add_pet(self, pet: Pet) -> None:
         """Add a pet to the owner's collection."""
         self.pets.append(pet)
 
-    def create_task(self, task: Task) -> None:
-        """Create a new care task."""
-        self.tasks.append(task)
+    def create_task(self, pet: Pet, task: Task) -> None:
+        """Assign a task to a pet."""
+        if pet not in self.pets:
+            self.add_pet(pet)
+        pet.add_task(task)
 
     def set_availability(self, availability: List[str]) -> None:
         """Set availability windows."""
@@ -135,7 +169,8 @@ class Owner:
 
     def generate_plan(self) -> "Schedule":
         """Generate a daily care plan."""
-        return Schedule(owner=self)
+        scheduler = Scheduler(owner=self, pets=self.pets, tasks=self.tasks)
+        return scheduler.schedule()
 
 
 @dataclass
@@ -187,26 +222,68 @@ class Schedule:
 
     def validate(self) -> bool:
         """Validate the schedule against constraints."""
+        if not self.scheduled_slots:
+            return True
+
+        ordered_slots = sorted(self.scheduled_slots, key=lambda s: s.start_time)
+        for index in range(1, len(ordered_slots)):
+            prev_slot = ordered_slots[index - 1]
+            current_slot = ordered_slots[index]
+            if prev_slot.end_time > current_slot.start_time:
+                return False
         return True
 
 
 class Scheduler:
-    """Schedules pet care tasks based on owner availability and pet needs."""
+    """The brain that retrieves, organizes, and manages tasks across owner pets."""
 
-    def __init__(self, owner: Owner, pets: List[Pet], tasks: List[Task]):
+    def __init__(self, owner: Owner, pets: Optional[List[Pet]] = None, tasks: Optional[List[Task]] = None):
+        """Initialize the scheduler with an owner, their pets, and tasks to manage."""
         self.owner = owner
-        self.pets = pets
-        self.tasks = tasks
+        self.pets = pets if pets is not None else owner.pets
+        self.tasks = tasks if tasks is not None else self.retrieve_tasks()
         self.availability = owner.availability
         self.constraints = {}
         self.scheduled_plan: Optional[Schedule] = None
 
+    def retrieve_tasks(self) -> List[Task]:
+        """Collect all pet tasks from the owner."""
+        return [task for pet in self.owner.pets for task in pet.tasks]
+
+    def organize_tasks(self) -> List[Task]:
+        """Sort tasks by completion status and scheduled time."""
+        return sorted(
+            self.tasks,
+            key=lambda task: (
+                task.completion_status,
+                task.time or datetime.max,
+            ),
+        )
+
     def schedule(self) -> Schedule:
         """Generate an optimized schedule."""
-        plan = Schedule(owner=self.owner)
+        self.tasks = self.retrieve_tasks()
+        organized_tasks = self.organize_tasks()
+        plan = Schedule(owner=self.owner, availability=self.availability)
+
+        for task in organized_tasks:
+            if task.scheduled_start and task.scheduled_end:
+                plan.add_scheduled_task_entry(task, task.scheduled_start, task.scheduled_end)
+            elif task.time:
+                end_time = task.time + timedelta(minutes=task.duration)
+                task.schedule(task.time, end_time)
+                plan.add_scheduled_task_entry(task, task.time, end_time)
+            else:
+                plan.unmet_tasks.append(task)
+
         self.scheduled_plan = plan
         return plan
 
+    def manage_task(self, task: Task) -> None:
+        """Update or reschedule a specific task."""
+        if task not in self.tasks:
+            self.tasks.append(task)
+
     def explain_decision(self, slot: ScheduledSlot) -> str:
         """Explain the reasoning for a scheduling decision."""
-        return ""
+        return slot.explanation or "Scheduled to fit owner availability and pet needs."
