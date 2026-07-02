@@ -29,6 +29,9 @@ I changed my Task class. In the beginning it had no reference to pets which is w
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+One tradeoff my scheduler makes is that it is simple and faster conflict handling versus a globally optimal scheduling.
+
+The tradeoff is reasonable for this scenario because it keeps the scheduler practical and a full global optimization would require way more code making it less practical, harder to read and it would slow down normal usage for this specific app.
 ---
 
 ## 3. AI Collaboration

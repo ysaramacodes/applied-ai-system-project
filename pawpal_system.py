@@ -90,11 +90,52 @@ class Task:
         self.schedule(new_start, new_end)
 
     def mark_complete(self, completed_time: datetime, notes: str = "") -> None:
-        """Mark the task as completed."""
+        """Mark the task as completed and create next occurrence if recurring."""
         self.completion_status = True
         self.scheduled_end = completed_time
         if notes:
             self.notes.append(notes)
+        
+        # Create next occurrence if recurring
+        if self.is_recurring() and self.pet:
+            self._create_next_occurrence()
+
+    def _create_next_occurrence(self) -> None:
+        """Create a new task instance for the next occurrence of a recurring task."""
+        if not self.frequency or not self.pet:
+            return
+
+        base_time = self.time or datetime.now()
+        frequency_key = self.frequency.lower()
+        interval_map = {
+            "daily": timedelta(days=1),
+            "weekly": timedelta(weeks=1),
+        }
+
+        if frequency_key in interval_map:
+            next_time = base_time + interval_map[frequency_key]
+        elif frequency_key == "monthly":
+            try:
+                from dateutil.relativedelta import relativedelta
+
+                next_time = base_time + relativedelta(months=1)
+            except ImportError:
+                next_time = base_time + timedelta(days=30)
+        else:
+            return
+
+        if any(task.description == self.description and task.time == next_time for task in self.pet.tasks):
+            return
+
+        next_task = Task(
+            description=self.description,
+            time=next_time,
+            duration=self.duration,
+            frequency=self.frequency,
+            preferred_time_slot=self.preferred_time_slot,
+            id=f"{self.id}-{next_time.strftime('%Y%m%d')}",
+        )
+        self.pet.add_task(next_task)
 
     def cancel(self, reason: str = "") -> None:
         """Cancel the task."""
@@ -192,6 +233,7 @@ class Schedule:
     total_duration: int = 0
     owner: Optional[Owner] = None
     unmet_tasks: List[Task] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
     status: str = "draft"
 
     def add_scheduled_task_entry(self, task: Task, start_time: datetime, end_time: datetime) -> None:
@@ -234,6 +276,90 @@ class Schedule:
         return True
 
 
+def get_or_create_owner(vault: dict, owner_name: str, contact_info: str = "") -> Owner:
+    """
+    Get an existing owner from the vault or create a new one if it doesn't exist.
+
+    Args:
+        vault: Dictionary serving as the object vault (e.g., st.session_state)
+        owner_name: The name of the owner to look up or create
+        contact_info: Contact info for new owners (optional)
+
+    Returns:
+        An Owner instance, either existing or newly created
+    """
+    owners_key = "owners_vault"
+
+    if owners_key not in vault:
+        vault[owners_key] = {}
+
+    owners = vault[owners_key]
+
+    if owner_name in owners:
+        return owners[owner_name]
+
+    new_owner = Owner(name=owner_name, contact_info=contact_info)
+    owners[owner_name] = new_owner
+    return new_owner
+
+
+def get_or_create_pet(vault: dict, pet_name: str, breed: str = "", age: int = 0, sex: str = "") -> Pet:
+    """
+    Get an existing pet from the vault or create a new one if it doesn't exist.
+
+    Args:
+        vault: Dictionary serving as the object vault (e.g., st.session_state)
+        pet_name: The name of the pet to look up or create
+        breed: Breed of the pet (optional, for new pets)
+        age: Age of the pet (optional, for new pets)
+        sex: Sex of the pet (optional, for new pets)
+
+    Returns:
+        A Pet instance, either existing or newly created
+    """
+    pets_key = "pets_vault"
+
+    if pets_key not in vault:
+        vault[pets_key] = {}
+
+    pets = vault[pets_key]
+
+    if pet_name in pets:
+        return pets[pet_name]
+
+    new_pet = Pet(name=pet_name, breed=breed, age=age, sex=sex)
+    pets[pet_name] = new_pet
+    return new_pet
+
+
+def get_or_create_task(vault: dict, task_description: str, duration: int = 0, frequency: str = "") -> Task:
+    """
+    Get an existing task from the vault or create a new one if it doesn't exist.
+
+    Args:
+        vault: Dictionary serving as the object vault (e.g., st.session_state)
+        task_description: The description of the task to look up or create
+        duration: Duration in minutes (optional, for new tasks)
+        frequency: Frequency of the task (optional, for new tasks)
+
+    Returns:
+        A Task instance, either existing or newly created
+    """
+    tasks_key = "tasks_vault"
+
+    if tasks_key not in vault:
+        vault[tasks_key] = {}
+
+    tasks = vault[tasks_key]
+
+    if task_description in tasks:
+        return tasks[task_description]
+
+    new_task = Task(description=task_description, duration=duration, frequency=frequency)
+    tasks[task_description] = new_task
+    return new_task
+
+
 class Scheduler:
     """The brain that retrieves, organizes, and manages tasks across owner pets."""
 
@@ -250,31 +376,171 @@ class Scheduler:
         """Collect all pet tasks from the owner."""
         return [task for pet in self.owner.pets for task in pet.tasks]
 
-    def organize_tasks(self) -> List[Task]:
-        """Sort tasks by completion status and scheduled time."""
+    def filter_tasks(self, pet_name: Optional[str] = None, include_completed: bool = False) -> List[Task]:
+        """Return a filtered list of tasks.
+
+        Args:
+            pet_name: Optional pet name to filter tasks by owner pet.
+            include_completed: If False, only pending tasks are returned.
+
+        Returns:
+            A list of Task objects matching the filter criteria.
+        """
+        filtered_tasks = [task for task in self.tasks if include_completed or not task.completion_status]
+        if pet_name:
+            filtered_tasks = [task for task in filtered_tasks if task.pet and task.pet.name == pet_name]
+        return filtered_tasks
+
+    def organize_tasks(self, pet_name: Optional[str] = None, include_completed: bool = False) -> List[Task]:
+        """Order tasks by completion, recurrence, and scheduled time.
+
+        This method prepares task ordering for scheduling by:
+        - keeping pending tasks before completed tasks,
+        - preferring recurring tasks before one-off tasks,
+        - sorting by task time and preferred time slot.
+        """
+        tasks_to_organize = self.filter_tasks(pet_name=pet_name, include_completed=include_completed)
         return sorted(
-            self.tasks,
+            tasks_to_organize,
             key=lambda task: (
                 task.completion_status,
+                not task.is_recurring(),
                 task.time or datetime.max,
+                task.preferred_time_slot,
             ),
         )
 
-    def schedule(self) -> Schedule:
-        """Generate an optimized schedule."""
+    def sort_by_time(self, tasks: Optional[List[Task]] = None) -> List[Task]:
+        """Sort tasks by their scheduled time, placing unscheduled tasks last."""
+        tasks_to_sort = tasks if tasks is not None else self.tasks
+        return sorted(
+            tasks_to_sort,
+            key=lambda task: task.time or datetime.max,
+        )
+
+    def _parse_preferred_start(self, task: Task) -> Optional[datetime]:
+        """Extract the start time from a preferred_time_slot string."""
+        if not task.preferred_time_slot:
+            return None
+
+        try:
+            start_str = task.preferred_time_slot.split("-")[0]
+            hours, minutes = map(int, start_str.split(":"))
+            return datetime(date.today().year, date.today().month, date.today().day, hours, minutes)
+        except ValueError:
+            return None
+
+    def _get_next_recurring_time(self, task: Task) -> datetime:
+        """Compute the next date/time for a recurring task based on its frequency."""
+        if task.time:
+            next_time = task.time
+        else:
+            next_time = self._parse_preferred_start(task) or datetime.combine(date.today(), datetime.min.time()).replace(hour=9)
+
+        now = datetime.now()
+        if next_time < now:
+            if task.frequency.lower() == "daily":
+                while next_time < now:
+                    next_time += timedelta(days=1)
+            elif task.frequency.lower() == "weekly":
+                while next_time < now:
+                    next_time += timedelta(weeks=1)
+            elif task.frequency.lower() == "monthly":
+                while next_time < now:
+                    next_time += timedelta(days=30)
+        return next_time
+
+    def _has_conflict(self, start_time: datetime, end_time: datetime, plan: Schedule, task: Optional[Task] = None) -> bool:
+        """Return True if the proposed slot overlaps with conflicting scheduled slots.
+
+        If a task is provided and has a pet, conflicts are limited to slots for
+        the same pet. Otherwise, any overlapping slot is considered a conflict.
+        """
+        def overlaps(slot: ScheduledSlot) -> bool:
+            return not (slot.end_time <= start_time or slot.start_time >= end_time)
+
+        if task and task.pet:
+            return any(
+                overlaps(slot) and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
+                for slot in plan.scheduled_slots
+            )
+
+        return any(overlaps(slot) for slot in plan.scheduled_slots)
+
+    def _find_non_conflicting_slot(self, task: Task, start_time: datetime, end_time: datetime, plan: Schedule) -> Optional[tuple[datetime, datetime]]:
+        """Find the nearest available slot around a requested time.
+
+        The search looks forward and backward in 15-minute increments up to two
+        hours from the requested start time.
+        """
+        if not self._has_conflict(start_time, end_time, plan, task):
+            return start_time, end_time
+
+        duration = end_time - start_time
+        search_window = 120
+        for offset in range(15, search_window + 1, 15):
+            for delta in (timedelta(minutes=offset), timedelta(minutes=-offset)):
+                candidate_start = start_time + delta
+                candidate_end = candidate_start + duration
+                if candidate_start.date() != start_time.date():
+                    continue
+                if not self._has_conflict(candidate_start, candidate_end, plan, task):
+                    return candidate_start, candidate_end
+
+        return None
+
+    def schedule(self, pet_name: Optional[str] = None, include_completed: bool = False) -> Schedule:
+        """Generate a daily schedule of pet tasks for the owner.
+
+        Tasks are retrieved, ordered, and placed into slots. If a task cannot
+        be scheduled because of a same-pet conflict or no available nearby slot,
+        it is added to unmet_tasks and a warning is recorded.
+        """
         self.tasks = self.retrieve_tasks()
-        organized_tasks = self.organize_tasks()
+        organized_tasks = self.organize_tasks(pet_name=pet_name, include_completed=include_completed)
         plan = Schedule(owner=self.owner, availability=self.availability)
 
         for task in organized_tasks:
+            if task.is_recurring():
+                task.time = self._get_next_recurring_time(task)
+
             if task.scheduled_start and task.scheduled_end:
-                plan.add_scheduled_task_entry(task, task.scheduled_start, task.scheduled_end)
+                start_time, end_time = task.scheduled_start, task.scheduled_end
             elif task.time:
+                start_time = task.time
                 end_time = task.time + timedelta(minutes=task.duration)
-                task.schedule(task.time, end_time)
-                plan.add_scheduled_task_entry(task, task.time, end_time)
             else:
                 plan.unmet_tasks.append(task)
+                continue
+
+            # If there's already a slot with the exact same start time for the same pet,
+            # treat this as an unrecoverable conflict: leave the existing slot and mark
+            # this task as unmet with a warning (do not auto-reschedule).
+            if task.pet and any(
+                slot.start_time == start_time and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
+                for slot in plan.scheduled_slots
+            ):
+                plan.unmet_tasks.append(task)
+                pet_name = task.pet.name if task.pet else "Unknown Pet"
+                time_str = start_time.strftime("%Y-%m-%d %H:%M") if start_time else "unspecified"
+                plan.warnings.append(
+                    f"Exact-start conflict: could not schedule '{task.description}' for {pet_name} at {time_str}; another task already starts then."
+                )
+                continue
+
+            match = self._find_non_conflicting_slot(task, start_time, end_time, plan)
+            if match:
+                scheduled_start, scheduled_end = match
+                task.schedule(scheduled_start, scheduled_end)
+                plan.add_scheduled_task_entry(task, scheduled_start, scheduled_end)
+            else:
+                plan.unmet_tasks.append(task)
+                # Add a lightweight, human-readable warning rather than raising
+                pet_name = task.pet.name if task.pet else "Unknown Pet"
+                time_str = start_time.strftime("%Y-%m-%d %H:%M") if start_time else "unspecified"
+                plan.warnings.append(
+                    f"Could not schedule '{task.description}' for {pet_name} at {time_str}; no non-conflicting slot found."
+                )
 
         self.scheduled_plan = plan
         return plan
