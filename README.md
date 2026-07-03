@@ -79,10 +79,18 @@ pytest --cov
 ```
 
 Sample test output:
+ python3 -m pytest
+
+ My tests covers task completion, task scheduling, recurring task scheduling, conflict detection, ordering, daily and weekly reccuring tasks.
 
 ```
 # Paste your pytest output here
-```
+                                                                                                         [100%]
+
+============================================================= 8 passed in 0.01s =============================================================
+
+
+Syetem Reliability is 4 stars based on my tests.
 
 ## 📐 Smarter Scheduling
 
