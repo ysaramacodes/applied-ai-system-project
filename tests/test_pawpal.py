@@ -90,13 +90,14 @@ def test_scheduler_detects_conflicts_and_reschedules():
     schedule = owner.generate_plan()
 
     # With exact same-start-time conflicts for the same pet, the scheduler
-    # will leave the first task scheduled and mark the second as unmet,
-    # appending a lightweight warning rather than auto-rescheduling.
+    # will chain the second task after the first with a 10-minute buffer.
     assert schedule.validate()
-    assert len(schedule.scheduled_slots) == 1
+    assert len(schedule.scheduled_slots) == 2
     assert schedule.scheduled_slots[0].task is task1
-    assert task2 in schedule.unmet_tasks
-    assert any("Breakfast" in w for w in schedule.warnings)
+    assert schedule.scheduled_slots[1].task is task2
+    assert not schedule.unmet_tasks
+    expected_start = start_time + timedelta(minutes=task1.duration + 10)
+    assert schedule.scheduled_slots[1].start_time == expected_start
 
 
 def test_scheduler_sort_by_time():
@@ -175,4 +176,33 @@ def test_weekly_recurring_task_creates_next_occurrence():
     
     next_task = pet.tasks[1]
     assert next_task.time.date() == (base_time + timedelta(weeks=1)).date()
+
+
+def test_next_available_slot_respects_conflicts():
+    owner = Owner(name="Sam", contact_info="sam@example.com")
+    pet = Pet(name="Rex", breed="Labrador", age=4, sex="Male")
+    owner.add_pet(pet)
+
+    base_day = datetime.now() + timedelta(days=1)
+    t1_start = base_day.replace(hour=9, minute=0, second=0, microsecond=0)
+    t2_start = base_day.replace(hour=9, minute=30, second=0, microsecond=0)
+
+    task1 = Task(description="Walk", time=t1_start, duration=30, id="s1")
+    task2 = Task(description="Feed", time=t2_start, duration=30, id="s2")
+
+    pet.add_task(task1)
+    pet.add_task(task2)
+
+    scheduler = Scheduler(owner=owner)
+    # Build current plan
+    scheduler.schedule()
+
+    # Request next 30-minute slot starting earliest at 9:00 for same pet
+    earliest = t1_start
+    slot = scheduler.next_available_slot(duration_minutes=30, earliest=earliest, pet_name="Rex", search_days=1)
+
+    assert slot is not None
+    start, end = slot
+    # Both 09:00-09:30 and 09:30-10:00 are taken, so next 30-min slot should be 10:00
+    assert start.hour == 10 and start.minute == 0
 

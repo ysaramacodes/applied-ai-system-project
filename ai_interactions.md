@@ -10,11 +10,12 @@
 
 **What task did you give the agent?**
 
-<!-- Describe the goal you asked the agent to accomplish -->
+I wanted the agent to create a next available slot algorithim.
 
 **What did the agent do?**
 
-<!-- List the steps the agent took (files edited, commands run, etc.) -->
+The agent opened up pawpal_system.py to find the scheduling logic. Then it added the algorithim in Scheduler to pawpal.
+Then the agent created a pytest to make sure that it doesnt create new errors and that it works as intended.
 
 **What did you have to verify or fix manually?**
 

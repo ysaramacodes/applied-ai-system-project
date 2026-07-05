@@ -1,67 +1,23 @@
-classDiagram
-    class Owner {
-        +String name
-        +String contactInfo
-        +List availability
-        +List preferences
-        +addPet()
-        +createTask()
-        +setAvailability()
-        +setPreferences()
-        +generatePlan()
-    }
-
-    class Pet {
-        +String name
-        +String breed
-        +int age
-        +String sex
-        +List healthConditions
-        +List medications
-        +String emergencyContact
-        +List activities
-        +String grooming
-        +eat()
-        +sleep()
-        +walk()
-        +takeMedication()
-        +play()
-        +potty()
-        +groom()
-    }
-
-    class Task {
-        +String title
-        +String type
-        +int duration
-        +String priority
-        +String recurrence
-        +String status
-        +Date deadline
-        +String preferredTimeSlot
-        +schedule()
-        +reschedule()
-        +mark_complete()
-        +cancel()
-        +is_recurring()
-        +is_conflicting()
-    }
-
-    class Schedule {
-        +Date date
-        +String day
-        +List availability
-        +List scheduledSlots
-        +int totalDuration
-        +addScheduledTaskEntry()
-        +removeScheduledEntry()
-        +modifySlot()
-        +getSlots()
-        +validate()
-    }
-
-    Owner "1" --> "*" Pet : owns
-    Owner "1" --> "*" Task : creates
-    Schedule "1" --> "*" Task : contains
-    Schedule "1" --> "1" Owner : for
-    Schedule "1" --> "*" Pet : considers
+graph TD
+    A[Owner Creates Scheduler] --> B[Scheduler.retrieve_tasks]
+    B --> C["Get all tasks from Owner's Pets"]
+    C --> D[Scheduler.organize_tasks]
+    D --> E["Filter by: completion_status, recurrence, time"]
+    E --> F[Scheduler.sort_by_time]
+    F --> G["Order tasks chronologically"]
+    G --> H[Create Schedule]
+    H --> I{For each Task}
+    I -->|Has Conflicts| J[_has_conflict check]
+    J -->|Exact Same Start| K["Move to unmet_tasks<br/>Add warning"]
+    J -->|Time Overlap| L[_find_non_conflicting_slot]
+    L -->|Slot Found| M["Reschedule task<br/>Add to ScheduledSlot"]
+    L -->|No Slot| N["Move to unmet_tasks<br/>Add warning"]
+    M --> O[Continue next task]
+    K --> O
+    N --> O
+    I -->|No Conflicts| P["Schedule task<br/>Add to ScheduledSlot"]
+    P --> O
+    O --> Q{More tasks?}
+    Q -->|Yes| I
+    Q -->|No| R[Return Schedule]
+    R --> S["Display to owner:<br/>- Scheduled tasks<br/>- Unmet tasks<br/>- Conflict warnings<br/>- Suggestions"]

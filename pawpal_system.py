@@ -489,6 +489,86 @@ class Scheduler:
 
         return None
 
+    def next_available_slot(self, duration_minutes: int, earliest: Optional[datetime] = None, pet_name: Optional[str] = None, search_days: int = 7) -> Optional[tuple[datetime, datetime]]:
+        """Find the next available time slot for a given duration.
+
+        Args:
+            duration_minutes: Length of desired slot in minutes.
+            earliest: Earliest datetime to consider. Defaults to now.
+            pet_name: If provided, ensure no conflicts for this pet.
+            search_days: How many days ahead to search.
+
+        Returns:
+            A tuple (start_datetime, end_datetime) for the next free slot, or None if not found.
+        """
+        if earliest is None:
+            earliest = datetime.now()
+
+        # Build or refresh a current plan to check conflicts against
+        plan = self.scheduled_plan or self.schedule()
+
+        # Create a lightweight dummy task to use pet-scoped conflict checks
+        dummy_pet = None
+        if pet_name:
+            for p in self.pets:
+                if p.name == pet_name:
+                    dummy_pet = p
+                    break
+
+        class _DummyTask:
+            def __init__(self, pet):
+                self.pet = pet
+
+        dummy_task = _DummyTask(dummy_pet)
+
+        duration = timedelta(minutes=duration_minutes)
+
+        # Parse availability windows if present. Expect strings like '09:00-17:00'
+        availability_windows = []
+        for a in (self.availability or []):
+            try:
+                start_s, end_s = a.split("-")
+                sh, sm = map(int, start_s.split(":"))
+                eh, em = map(int, end_s.split(":"))
+                availability_windows.append((sh, sm, eh, em))
+            except Exception:
+                continue
+
+        # If no availability provided, allow day windows from 08:00-20:00
+        if not availability_windows:
+            availability_windows = [(8, 0, 20, 0)]
+
+        # Align search to next quarter-hour
+        minute = (earliest.minute // 15) * 15
+        current = earliest.replace(minute=minute, second=0, microsecond=0)
+        if current < earliest:
+            current += timedelta(minutes=15)
+
+        end_search = current + timedelta(days=search_days)
+
+        while current <= end_search:
+            # For each day's availability window, construct candidate starts
+            for (sh, sm, eh, em) in availability_windows:
+                window_start = current.replace(hour=sh, minute=sm, second=0, microsecond=0)
+                window_end = current.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+                # If window_end before window_start (overnight), skip that window for simplicity
+                if window_end <= window_start:
+                    continue
+
+                candidate = max(current, window_start)
+                # Step through window in 15-minute increments
+                while candidate + duration <= window_end:
+                    candidate_end = candidate + duration
+                    if not self._has_conflict(candidate, candidate_end, plan, task=dummy_task):
+                        return candidate, candidate_end
+                    candidate += timedelta(minutes=15)
+
+            # Move to next day at the same aligned minute
+            current = (current + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        return None
+
     def schedule(self, pet_name: Optional[str] = None, include_completed: bool = False) -> Schedule:
         """Generate a daily schedule of pet tasks for the owner.
 
@@ -520,6 +600,24 @@ class Scheduler:
                 slot.start_time == start_time and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
                 for slot in plan.scheduled_slots
             ):
+                # Attempt to chain after the conflicting slot with a 10-minute buffer
+                conflicting_slots = [
+                    slot for slot in plan.scheduled_slots
+                    if slot.start_time == start_time and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
+                ]
+                conflicting_slot = max(conflicting_slots, key=lambda s: s.end_time) if conflicting_slots else None
+                buffer_minutes = 10
+                if conflicting_slot:
+                    candidate_start = conflicting_slot.end_time + timedelta(minutes=buffer_minutes)
+                    candidate_end = candidate_start + (end_time - start_time)
+                    chained_match = self._find_non_conflicting_slot(task, candidate_start, candidate_end, plan)
+                    if chained_match:
+                        chained_start, chained_end = chained_match
+                        task.schedule(chained_start, chained_end)
+                        plan.add_scheduled_task_entry(task, chained_start, chained_end)
+                        continue
+
+                # If chaining failed, mark unmet and warn
                 plan.unmet_tasks.append(task)
                 pet_name = task.pet.name if task.pet else "Unknown Pet"
                 time_str = start_time.strftime("%Y-%m-%d %H:%M") if start_time else "unspecified"

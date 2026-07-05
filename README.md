@@ -107,10 +107,10 @@ Syetem Reliability is 4 stars based on my tests.
 
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+1. The user/pet Owner have to type their information and contact information.
+2. The user than has to give their pets informtion like age/sex, name.
+3. The pet owner than creates tasks for their pets like sleep, walk and if its recurring or a one time task.
+4. The pet owner has to then set their availability so the app can make a schedule based on their timeslot.
+5. After the user creates schedule they can view todays tasks.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->

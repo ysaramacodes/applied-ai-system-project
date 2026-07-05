@@ -100,6 +100,15 @@ classDiagram
         +String explanation
     }
 
+    %% Persistence Layer
+    class PersistenceLayer {
+        +save_data(owner, filename) void
+        +load_data(filename) Owner
+        +get_or_create_owner(vault, owner_name, contact_info) Owner
+        +get_or_create_pet(vault, pet_name, breed, age, sex) Pet
+        +get_or_create_task(vault, task_description, duration, frequency) Task
+    }
+
     %% Relationships
     Owner "1" --> "*" Pet : owns
     Owner "1" --> "*" Task : creates
@@ -118,3 +127,7 @@ classDiagram
     Schedule "1" --> "*" Task : includes_unmet
     
     ScheduledSlot "1" --> "1" Task : holds
+    
+    PersistenceLayer "1" --> "1" Owner : saves/loads
+    PersistenceLayer "1" --> "*" Pet : persists
+    PersistenceLayer "1" --> "*" Task : persists
