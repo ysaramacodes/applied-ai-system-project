@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pawpal_system import Pet, Task, Owner, Schedule, Scheduler, get_or_create_owner, get_or_create_pet, get_or_create_task
+from agent import CareAgent
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -143,7 +144,16 @@ else:
 st.divider()
 
 st.subheader("Build Schedule")
-st.caption("Generate a daily care plan based on tasks and availability.")
+st.caption("Generate a daily care plan with AI-powered optimization.")
+
+# Initialize agent in session state
+if "care_agent" not in st.session_state:
+    scheduler = Scheduler(owner=owner)
+    st.session_state.care_agent = CareAgent(owner=owner, scheduler=scheduler)
+else:
+    # Update agent's owner reference
+    st.session_state.care_agent.owner = owner
+    st.session_state.care_agent.scheduler.owner = owner
 
 col1, col2 = st.columns(2)
 with col1:
@@ -151,18 +161,36 @@ with col1:
 with col2:
     if st.button("Set availability"):
         owner.set_availability([availability_input])
+        st.session_state.care_agent.scheduler.availability = [availability_input]
         st.success(f"✅ Availability set to: {availability_input}")
 
-if st.button("Generate schedule", use_container_width=True, type="primary"):
+if st.button("Generate schedule with AI", use_container_width=True, type="primary"):
     if not owner.pets or not owner.tasks:
         st.error("❌ Please add a pet and at least one task before generating a schedule.")
     else:
         try:
-            # Generate the schedule using the Scheduler
-            schedule = owner.generate_plan()
+            # Generate the schedule using the AI-powered Care Agent
+            agent = st.session_state.care_agent
+            schedule = agent.generate_intelligent_schedule()
 
-            st.success("✅ Schedule generated successfully!")
-            
+            st.success("✅ AI schedule generated successfully!")
+
+            # Show agent analysis
+            with st.expander("🤖 AI Agent Analysis", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                analysis = agent.analyze_scheduling_needs()
+                with col1:
+                    st.metric("Total Pets", analysis["total_pets"])
+                with col2:
+                    st.metric("Total Tasks", analysis["total_tasks"])
+                with col3:
+                    st.metric("Available Hours", f"{analysis['available_hours']:.1f}h")
+
+                if analysis["pet_health_considerations"]:
+                    st.warning("🏥 Health Considerations:")
+                    for pet_name, health_info in analysis["pet_health_considerations"].items():
+                        st.caption(f"**{pet_name}**: {', '.join(health_info['conditions'] or ['No conditions recorded'])}")
+
             # Separate conflicts by type
             exact_conflicts = [w for w in schedule.warnings if "Exact-start conflict" in w]
             no_slot_conflicts = [w for w in schedule.warnings if "no non-conflicting slot" in w]
@@ -221,9 +249,9 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                                     slot.task.mark_complete(slot.end_time)
                                     st.rerun()
                             
-                            # Display explanation from scheduler
-                            if slot.explanation:
-                                st.info(f"💡 {slot.explanation}")
+                            # Display AI agent explanation
+                            agent_explanation = agent.explain_decision(slot)
+                            st.info(f"🤖 {agent_explanation}")
                 else:
                     st.info("No tasks scheduled.")
 
@@ -237,7 +265,7 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                                 if task.description in w:
                                     related_warning = w
                                     break
-                            
+
                             with st.container(border=True):
                                 col1, col2 = st.columns([3, 1])
                                 with col1:
@@ -246,14 +274,13 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                                     if related_warning:
                                         st.caption(f"⚠️ {related_warning.split(':', 1)[1].strip() if ':' in related_warning else related_warning}")
 
-                                    # Suggest the next available slot for this unmet task
+                                    # Get AI agent recommendation for this unmet task
                                     try:
-                                        scheduler_local = Scheduler(owner=owner)
-                                        scheduler_local.scheduled_plan = schedule
-                                        earliest_dt = task.time if task.time else datetime.now()
-                                        suggestion = scheduler_local.next_available_slot(
+                                        recommendation = agent.get_scheduling_recommendation(task)
+                                        st.info(f"🤖 {recommendation}")
+
+                                        suggestion = agent.scheduler.next_available_slot(
                                             duration_minutes=task.duration,
-                                            earliest=earliest_dt,
                                             pet_name=task.pet.name if task.pet else None,
                                             search_days=7,
                                         )
@@ -268,7 +295,7 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                                             button_key = f"schedule_suggest_{safe_id}_{s_start.strftime('%Y%m%d%H%M')}"
                                             if st.button("Schedule here", key=button_key, use_container_width=True):
                                                 # Prevent overlapping schedule entries
-                                                conflict = scheduler_local._has_conflict(s_start, s_end, schedule, task=task)
+                                                conflict = agent.scheduler._has_conflict(s_start, s_end, schedule, task=task)
                                                 if conflict:
                                                     # Find a conflicting slot to report
                                                     conflicting_slot = None
@@ -290,8 +317,8 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                                                     st.experimental_rerun()
                                         else:
                                             st.caption("No available slot found in next 7 days")
-                                    except Exception:
-                                        st.caption("Could not compute next available slot")
+                                    except Exception as e:
+                                        st.caption(f"Could not compute recommendation: {str(e)}")
                                 with col2:
                                     st.caption(task.frequency or "one-time")
                 
@@ -301,5 +328,73 @@ if st.button("Generate schedule", use_container_width=True, type="primary"):
                         for warning in schedule.warnings:
                             st.caption(f"• {warning}")
 
+                # Show agent recommendations
+                if agent.last_recommendation:
+                    st.divider()
+                    with st.expander("💡 AI Recommendations", expanded=True):
+                        st.markdown(agent.last_recommendation)
+
         except Exception as e:
             st.error(f"Error generating schedule: {str(e)}")
+
+st.divider()
+
+st.subheader("🤖 Adaptive Scheduling")
+st.caption("Let the AI agent adapt to changes in availability, health, or tasks.")
+
+with st.expander("Adapt Schedule to Changes", expanded=False):
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Change Type:**")
+        change_type = st.selectbox(
+            "What changed?",
+            ["New availability", "New task", "Pet health update"],
+            label_visibility="collapsed"
+        )
+
+    with col2:
+        if change_type == "New availability":
+            new_avail = st.text_input("New availability (e.g., 7am-9pm)")
+            if st.button("Adapt to new availability"):
+                if new_avail:
+                    agent = st.session_state.care_agent
+                    result = agent.adapt_to_changes({"new_availability": [new_avail]})
+                    st.success(result)
+        elif change_type == "New task":
+            st.markdown("**Create new task:**")
+            task_desc = st.text_input("Task description")
+            task_duration = st.number_input("Duration (minutes)", 5, 240, 30)
+            task_freq = st.selectbox("Frequency", ["one-time", "daily", "weekly", "monthly"])
+
+            if owner.pets:
+                task_pet = st.selectbox("Assign to pet", [p.name for p in owner.pets])
+                selected_pet = next((p for p in owner.pets if p.name == task_pet), None)
+
+                if st.button("Add task and regenerate schedule"):
+                    if task_desc and selected_pet:
+                        agent = st.session_state.care_agent
+                        new_task_data = {
+                            "description": task_desc,
+                            "duration": task_duration,
+                            "frequency": task_freq,
+                            "pet": selected_pet
+                        }
+                        result = agent.adapt_to_changes({"new_task": new_task_data})
+                        st.success(result)
+            else:
+                st.warning("Please add a pet first")
+
+        elif change_type == "Pet health update":
+            if owner.pets:
+                pet_name = st.selectbox("Select pet", [p.name for p in owner.pets])
+                condition = st.text_input("Health condition")
+
+                if st.button("Update health and adapt schedule"):
+                    if condition:
+                        agent = st.session_state.care_agent
+                        health_data = {"pet_name": pet_name, "condition": condition}
+                        result = agent.adapt_to_changes({"pet_health_update": health_data})
+                        st.success(result)
+            else:
+                st.warning("Please add a pet first")

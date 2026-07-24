@@ -1,0 +1,52 @@
+graph TB
+    subgraph UI["UI Layer"]
+        Streamlit["Streamlit App<br/>app.py"]
+    end
+
+    subgraph Agent["Agent Layer"]
+        AgentOrch["Care Agent Orchestrator<br/>agent.py"]
+        TaskAnalyzer["Task Analyzer<br/>Tool"]
+        ScheduleOptimizer["Schedule Optimizer<br/>Tool"]
+        ConflictResolver["Conflict Resolver<br/>Tool"]
+        RecommendationEngine["Recommendation Engine<br/>Tool"]
+    end
+
+    subgraph Core["Core System"]
+        Scheduler["Scheduler<br/>pawpal_system.py"]
+        PetManager["Pet Manager<br/>pawpal_system.py"]
+        TaskManager["Task Manager<br/>pawpal_system.py"]
+    end
+
+    subgraph Data["Data Models"]
+        Owner["Owner"]
+        Pet["Pet"]
+        Task["Task"]
+        Schedule["Schedule"]
+    end
+
+    Streamlit -->|"Triggers Agent"| AgentOrch
+    AgentOrch -->|"Analyzes Tasks"| TaskAnalyzer
+    AgentOrch -->|"Optimizes Schedule"| ScheduleOptimizer
+    AgentOrch -->|"Resolves Conflicts"| ConflictResolver
+    AgentOrch -->|"Generates Recommendations"| RecommendationEngine
+
+    TaskAnalyzer -->|"Uses"| TaskManager
+    ScheduleOptimizer -->|"Uses"| Scheduler
+    ConflictResolver -->|"Uses"| Scheduler
+    RecommendationEngine -->|"Uses"| PetManager
+
+    TaskManager -->|"Manages"| Task
+    PetManager -->|"Manages"| Pet
+    Scheduler -->|"Creates"| Schedule
+    Schedule -->|"Contains"| Task
+
+    AgentOrch -->|"Returns Plan & Reasoning"| Streamlit
+    Streamlit -->|"Displays Results"| UI
+
+    style AgentOrch fill:#ff9e64
+    style Streamlit fill:#7aa2f7
+    style Scheduler fill:#bb9af7
+    style Owner fill:#7aa2f7
+    style Pet fill:#7aa2f7
+    style Task fill:#7aa2f7
+    style Schedule fill:#bb9af7
