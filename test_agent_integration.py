@@ -152,5 +152,48 @@ def test_health_considerations():
     assert "Diabetes" in analysis["pet_health_considerations"]["Mochi"]["conditions"]
 
 
+def test_respects_availability_window():
+    """Test that scheduler respects availability constraints."""
+    owner = Owner(name="Jordan", contact_info="test@example.com")
+    pet = Pet(name="Mochi", breed="dog", age=2, sex="Male")
+    owner.add_pet(pet)
+
+    task = Task(description="Morning walk", duration=20, frequency="one-time")
+    task.time = datetime(datetime.today().year, datetime.today().month, datetime.today().day, 8, 0)  # 8 AM
+    owner.create_task(pet, task)
+
+    # Set availability to 9am-8pm (task at 8 AM is outside)
+    owner.set_availability(["9am-8pm"])
+
+    agent = CareAgent(owner=owner)
+    schedule = agent.generate_intelligent_schedule()
+
+    # Agent should either leave unmet or reschedule to within availability
+    all_tasks = len(schedule.scheduled_slots) + len(schedule.unmet_tasks)
+    assert all_tasks >= 1  # Task should exist somewhere
+
+    # All scheduled tasks must be within availability window
+    for slot in schedule.scheduled_slots:
+        assert slot.start_time.hour >= 9, f"Task scheduled at {slot.start_time.hour}:{slot.start_time.minute} but availability starts at 9am"
+        assert slot.end_time.hour <= 20, f"Task ends at {slot.end_time.hour}:{slot.end_time.minute} but availability ends at 8pm"
+
+
+def test_availability_with_time_format():
+    """Test that availability parsing works with different time formats."""
+    owner = Owner(name="Jordan", contact_info="test@example.com")
+    pet = Pet(name="Mochi", breed="dog", age=2, sex="Male")
+    owner.add_pet(pet)
+
+    task = Task(description="Task 1", duration=30, frequency="one-time")
+    owner.create_task(pet, task)
+
+    # Test various time formats
+    owner.set_availability(["9am-5pm"])
+    agent = CareAgent(owner=owner)
+
+    analysis = agent.analyze_scheduling_needs()
+    assert analysis["available_hours"] == 8  # 9am to 5pm is 8 hours
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

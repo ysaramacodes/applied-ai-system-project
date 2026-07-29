@@ -467,13 +467,50 @@ class Scheduler:
 
         return any(overlaps(slot) for slot in plan.scheduled_slots)
 
+    def _is_within_availability(self, start_time: datetime, end_time: datetime) -> bool:
+        """Check if a time slot falls within the owner's availability window."""
+        if not self.availability:
+            return True
+
+        start_hour, start_min = start_time.hour, start_time.minute
+        end_hour, end_min = end_time.hour, end_time.minute
+
+        for avail_window in self.availability:
+            try:
+                start_str, end_str = avail_window.split("-")
+                # Parse start time
+                start_parts = start_str.replace("am", "").replace("pm", "").replace(":", "").strip()
+                start_is_pm = "pm" in start_str.lower()
+                avail_start_hour = int(start_parts.split(":")[0] if ":" in start_str else start_parts[:len(start_parts)-1] if len(start_parts) > 2 else start_parts)
+                if start_is_pm and avail_start_hour != 12:
+                    avail_start_hour += 12
+                elif not start_is_pm and avail_start_hour == 12:
+                    avail_start_hour = 0
+
+                # Parse end time
+                end_parts = end_str.replace("am", "").replace("pm", "").replace(":", "").strip()
+                end_is_pm = "pm" in end_str.lower()
+                avail_end_hour = int(end_parts.split(":")[0] if ":" in end_str else end_parts[:len(end_parts)-1] if len(end_parts) > 2 else end_parts)
+                if end_is_pm and avail_end_hour != 12:
+                    avail_end_hour += 12
+                elif not end_is_pm and avail_end_hour == 12:
+                    avail_end_hour = 0
+
+                # Check if slot is within this availability window
+                if start_hour >= avail_start_hour and end_hour <= avail_end_hour:
+                    return True
+            except (ValueError, IndexError):
+                continue
+
+        return False
+
     def _find_non_conflicting_slot(self, task: Task, start_time: datetime, end_time: datetime, plan: Schedule) -> Optional[tuple[datetime, datetime]]:
         """Find the nearest available slot around a requested time.
 
         The search looks forward and backward in 15-minute increments up to two
-        hours from the requested start time.
+        hours from the requested start time, respecting availability constraints.
         """
-        if not self._has_conflict(start_time, end_time, plan, task):
+        if not self._has_conflict(start_time, end_time, plan, task) and self._is_within_availability(start_time, end_time):
             return start_time, end_time
 
         duration = end_time - start_time
@@ -484,7 +521,7 @@ class Scheduler:
                 candidate_end = candidate_start + duration
                 if candidate_start.date() != start_time.date():
                     continue
-                if not self._has_conflict(candidate_start, candidate_end, plan, task):
+                if not self._has_conflict(candidate_start, candidate_end, plan, task) and self._is_within_availability(candidate_start, candidate_end):
                     return candidate_start, candidate_end
 
         return None
