@@ -259,8 +259,8 @@ class Schedule:
             slot.end_time = new_end
 
     def get_slots(self) -> List[ScheduledSlot]:
-        """Get all scheduled slots."""
-        return self.scheduled_slots
+        """Get all scheduled slots sorted by start time."""
+        return sorted(self.scheduled_slots, key=lambda s: s.start_time)
 
     def validate(self) -> bool:
         """Validate the schedule against constraints."""
