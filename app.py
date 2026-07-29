@@ -43,23 +43,23 @@ At minimum, your system should:
 st.divider()
 
 st.subheader("Quick Demo Inputs (UI only)")
-owner_name = st.text_input("Owner name", value="Jordan")
-contact_info = st.text_input("Contact info", value="")
+owner_name = st.text_input("Owner name", value="Jordan", key="owner_name_input")
+contact_info = st.text_input("Contact info", value="", key="contact_info_input")
 
 # Get or create owner from vault (session_state)
 owner = get_or_create_owner(st.session_state, owner_name, contact_info)
 
 st.markdown("### Pet Information")
-pet_name = st.text_input("Pet name", value="Mochi")
-species = st.selectbox("Species", ["dog", "cat", "other"])
-pet_age = st.number_input("Pet age (years)", min_value=0, max_value=30, value=2)
-pet_sex = st.selectbox("Pet sex", ["Male", "Female"])
+pet_name = st.text_input("Pet name", value="Mochi", key="pet_name_input")
+species = st.selectbox("Species", ["dog", "cat", "other"], key="species_select")
+pet_age = st.number_input("Pet age (years)", min_value=0, max_value=30, value=2, key="pet_age_input")
+pet_sex = st.selectbox("Pet sex", ["Male", "Female"], key="pet_sex_select")
 
 # Get or create pet from vault
 pet = get_or_create_pet(st.session_state, pet_name, breed=species, age=pet_age, sex=pet_sex)
 
 # Add pet to owner
-if st.button("Add pet to owner"):
+if st.button("Add pet to owner", key="add_pet_btn"):
     if pet not in owner.pets:
         owner.add_pet(pet)
         st.success(f"✅ Added {pet_name} to {owner_name}'s pets!")
@@ -83,19 +83,19 @@ st.caption("Add care tasks to your pet.")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    task_title = st.text_input("Task description", value="Morning walk")
+    task_title = st.text_input("Task description", value="Morning walk", key="task_title_input")
 with col2:
-    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
+    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20, key="task_duration_input")
 with col3:
-    frequency = st.selectbox("Frequency", ["one-time", "daily", "weekly", "monthly"])
+    frequency = st.selectbox("Frequency", ["one-time", "daily", "weekly", "monthly"], key="task_frequency_select")
 with col4:
     pet_names = [p.name for p in owner.pets] if owner.pets else []
     if pet_names:
-        selected_pet_name = st.selectbox("Pet", pet_names)
+        selected_pet_name = st.selectbox("Pet", pet_names, key="task_pet_select")
     else:
         selected_pet_name = None
 
-if st.button("Create and assign task"):
+if st.button("Create and assign task", key="create_task_btn"):
     if not owner.pets:
         st.error("❌ Please add a pet first before creating tasks.")
     elif not selected_pet_name:
@@ -157,14 +157,14 @@ else:
 
 col1, col2 = st.columns(2)
 with col1:
-    availability_input = st.text_input("Availability (e.g., 8am-5pm)", value="8am-8pm")
+    availability_input = st.text_input("Availability (e.g., 8am-5pm)", value="8am-8pm", key="main_availability")
 with col2:
-    if st.button("Set availability"):
+    if st.button("Set availability", key="set_availability_btn"):
         owner.set_availability([availability_input])
         st.session_state.care_agent.scheduler.availability = [availability_input]
         st.success(f"✅ Availability set to: {availability_input}")
 
-if st.button("Generate schedule with AI", use_container_width=True, type="primary"):
+if st.button("Generate schedule with AI", use_container_width=True, type="primary", key="generate_schedule_btn"):
     if not owner.pets or not owner.tasks:
         st.error("❌ Please add a pet and at least one task before generating a schedule.")
     else:
@@ -350,28 +350,29 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
         change_type = st.selectbox(
             "What changed?",
             ["New availability", "New task", "Pet health update"],
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="adapt_change_type"
         )
 
     with col2:
         if change_type == "New availability":
-            new_avail = st.text_input("New availability (e.g., 7am-9pm)")
-            if st.button("Adapt to new availability"):
+            new_avail = st.text_input("New availability (e.g., 7am-9pm)", key="adapt_new_availability")
+            if st.button("Adapt to new availability", key="adapt_availability_btn"):
                 if new_avail:
                     agent = st.session_state.care_agent
                     result = agent.adapt_to_changes({"new_availability": [new_avail]})
                     st.success(result)
         elif change_type == "New task":
             st.markdown("**Create new task:**")
-            task_desc = st.text_input("Task description")
-            task_duration = st.number_input("Duration (minutes)", 5, 240, 30)
-            task_freq = st.selectbox("Frequency", ["one-time", "daily", "weekly", "monthly"])
+            task_desc = st.text_input("Task description", key="adapt_task_desc")
+            task_duration = st.number_input("Duration (minutes)", 5, 240, 30, key="adapt_task_duration")
+            task_freq = st.selectbox("Frequency", ["one-time", "daily", "weekly", "monthly"], key="adapt_task_freq")
 
             if owner.pets:
-                task_pet = st.selectbox("Assign to pet", [p.name for p in owner.pets])
+                task_pet = st.selectbox("Assign to pet", [p.name for p in owner.pets], key="adapt_task_pet")
                 selected_pet = next((p for p in owner.pets if p.name == task_pet), None)
 
-                if st.button("Add task and regenerate schedule"):
+                if st.button("Add task and regenerate schedule", key="adapt_task_btn"):
                     if task_desc and selected_pet:
                         agent = st.session_state.care_agent
                         new_task_data = {
@@ -387,10 +388,10 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
 
         elif change_type == "Pet health update":
             if owner.pets:
-                pet_name = st.selectbox("Select pet", [p.name for p in owner.pets])
-                condition = st.text_input("Health condition")
+                pet_name = st.selectbox("Select pet", [p.name for p in owner.pets], key="adapt_pet_name")
+                condition = st.text_input("Health condition", key="adapt_health_condition")
 
-                if st.button("Update health and adapt schedule"):
+                if st.button("Update health and adapt schedule", key="adapt_health_btn"):
                     if condition:
                         agent = st.session_state.care_agent
                         health_data = {"pet_name": pet_name, "condition": condition}
