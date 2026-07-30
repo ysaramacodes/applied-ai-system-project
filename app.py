@@ -362,6 +362,9 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                     agent = st.session_state.care_agent
                     result = agent.adapt_to_changes({"new_availability": [new_avail]})
                     st.success(result)
+                    # Regenerate schedule with new availability
+                    st.session_state.adaptive_update = True
+                    st.rerun()
         elif change_type == "New task":
             st.markdown("**Create new task:**")
             task_desc = st.text_input("Task description", key="adapt_task_desc")
@@ -383,6 +386,9 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                         }
                         result = agent.adapt_to_changes({"new_task": new_task_data})
                         st.success(result)
+                        # Regenerate schedule with new task
+                        st.session_state.adaptive_update = True
+                        st.rerun()
             else:
                 st.warning("Please add a pet first")
 
@@ -397,5 +403,8 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                         health_data = {"pet_name": pet_name, "condition": condition}
                         result = agent.adapt_to_changes({"pet_health_update": health_data})
                         st.success(result)
+                        # Regenerate schedule with health update
+                        st.session_state.adaptive_update = True
+                        st.rerun()
             else:
                 st.warning("Please add a pet first")
