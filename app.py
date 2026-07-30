@@ -143,6 +143,57 @@ else:
 
 st.divider()
 
+# Display updated schedule from adaptive scheduling at the top
+if "show_updated_schedule" in st.session_state and st.session_state.show_updated_schedule:
+    st.success("✅ Schedule updated! Here's your new plan:")
+    st.balloons()
+
+    agent = st.session_state.care_agent
+    schedule = agent.generate_intelligent_schedule()
+
+    with st.expander(f"📅 Updated Schedule for {schedule.date}", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Scheduled Tasks", len(schedule.scheduled_slots))
+        with col2:
+            st.metric("Total Duration", f"{schedule.total_duration} min")
+        with col3:
+            st.metric("Unmet Tasks", len(schedule.unmet_tasks))
+
+        st.divider()
+
+        if schedule.scheduled_slots:
+            st.subheader("📌 Daily Schedule")
+            for i, slot in enumerate(schedule.get_slots(), 1):
+                with st.container(border=True):
+                    col1, col2, col3 = st.columns([2, 2, 1])
+                    with col1:
+                        st.write(f"**{i}. {slot.task.description}**")
+                        st.caption(f"Pet: {slot.task.pet.name if slot.task.pet else 'Unassigned'}")
+                    with col2:
+                        st.caption(f"⏱️ {slot.start_time.strftime('%I:%M %p')} - {slot.end_time.strftime('%I:%M %p')}")
+                        st.caption(f"Duration: {slot.task.duration} min")
+                    with col3:
+                        if st.button("✅ Done", key=f"complete_updated_{i}", use_container_width=True):
+                            slot.task.mark_complete(slot.end_time)
+                            st.rerun()
+
+                    agent_explanation = agent.explain_decision(slot)
+                    st.info(f"🤖 {agent_explanation}")
+        else:
+            st.info("No tasks scheduled.")
+
+        if schedule.unmet_tasks:
+            st.divider()
+            with st.expander(f"⚠️ Unmet Tasks ({len(schedule.unmet_tasks)})", expanded=False):
+                for task in schedule.unmet_tasks:
+                    with st.container(border=True):
+                        st.write(f"• **{task.description}**")
+                        st.caption(f"Pet: {task.pet.name if task.pet else 'Unassigned'} | Duration: {task.duration} min")
+
+    st.divider()
+    st.session_state.show_updated_schedule = False
+
 st.subheader("Build Schedule")
 st.caption("Generate a daily care plan with AI-powered optimization.")
 
@@ -361,9 +412,8 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                 if new_avail:
                     agent = st.session_state.care_agent
                     result = agent.adapt_to_changes({"new_availability": [new_avail]})
-                    st.success(result)
-                    # Regenerate schedule with new availability
-                    st.session_state.adaptive_update = True
+                    # Show updated schedule prominently
+                    st.session_state.show_updated_schedule = True
                     st.rerun()
         elif change_type == "New task":
             st.markdown("**Create new task:**")
@@ -385,9 +435,8 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                             "pet": selected_pet
                         }
                         result = agent.adapt_to_changes({"new_task": new_task_data})
-                        st.success(result)
-                        # Regenerate schedule with new task
-                        st.session_state.adaptive_update = True
+                        # Show updated schedule prominently
+                        st.session_state.show_updated_schedule = True
                         st.rerun()
             else:
                 st.warning("Please add a pet first")
@@ -402,9 +451,8 @@ with st.expander("Adapt Schedule to Changes", expanded=False):
                         agent = st.session_state.care_agent
                         health_data = {"pet_name": pet_name, "condition": condition}
                         result = agent.adapt_to_changes({"pet_health_update": health_data})
-                        st.success(result)
-                        # Regenerate schedule with health update
-                        st.session_state.adaptive_update = True
+                        # Show updated schedule prominently
+                        st.session_state.show_updated_schedule = True
                         st.rerun()
             else:
                 st.warning("Please add a pet first")
