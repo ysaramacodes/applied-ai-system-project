@@ -195,5 +195,32 @@ def test_availability_with_time_format():
     assert analysis["available_hours"] == 8  # 9am to 5pm is 8 hours
 
 
+def test_tasks_dont_overflow_availability():
+    """Test that tasks don't extend past the availability window."""
+    owner = Owner(name="Jordan", contact_info="test@example.com")
+    pet = Pet(name="Mochi", breed="dog", age=2, sex="Male")
+    owner.add_pet(pet)
+
+    # Create a task with 30 min duration
+    task = Task(description="Evening task", duration=30, frequency="one-time")
+    task.time = datetime(datetime.today().year, datetime.today().month, datetime.today().day, 20, 45)  # 8:45 PM
+    owner.create_task(pet, task)
+
+    # Availability ends at 9 PM (21:00)
+    owner.set_availability(["9am-9pm"])
+
+    agent = CareAgent(owner=owner)
+    schedule = agent.generate_intelligent_schedule()
+
+    # Task would end at 9:15 PM, which is after 9 PM cutoff
+    # So it should either be unmet or rescheduled earlier
+    if schedule.scheduled_slots:
+        for slot in schedule.scheduled_slots:
+            # All tasks must end by 9 PM (21:00)
+            assert slot.end_time.hour <= 21, f"Task ends at {slot.end_time.hour}:{slot.end_time.minute} but availability ends at 21:00"
+            if slot.end_time.hour == 21:
+                assert slot.end_time.minute == 0, "Task extends past 9 PM cutoff"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

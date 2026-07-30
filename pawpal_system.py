@@ -472,37 +472,49 @@ class Scheduler:
         if not self.availability:
             return True
 
-        start_hour, start_min = start_time.hour, start_time.minute
-        end_hour, end_min = end_time.hour, end_time.minute
-
         for avail_window in self.availability:
             try:
                 start_str, end_str = avail_window.split("-")
-                # Parse start time
-                start_parts = start_str.replace("am", "").replace("pm", "").replace(":", "").strip()
-                start_is_pm = "pm" in start_str.lower()
-                avail_start_hour = int(start_parts.split(":")[0] if ":" in start_str else start_parts[:len(start_parts)-1] if len(start_parts) > 2 else start_parts)
-                if start_is_pm and avail_start_hour != 12:
-                    avail_start_hour += 12
-                elif not start_is_pm and avail_start_hour == 12:
-                    avail_start_hour = 0
 
-                # Parse end time
-                end_parts = end_str.replace("am", "").replace("pm", "").replace(":", "").strip()
-                end_is_pm = "pm" in end_str.lower()
-                avail_end_hour = int(end_parts.split(":")[0] if ":" in end_str else end_parts[:len(end_parts)-1] if len(end_parts) > 2 else end_parts)
-                if end_is_pm and avail_end_hour != 12:
-                    avail_end_hour += 12
-                elif not end_is_pm and avail_end_hour == 12:
-                    avail_end_hour = 0
+                # Parse availability start time
+                avail_start_hour, avail_start_min = self._parse_time(start_str)
+                avail_start = start_time.replace(hour=avail_start_hour, minute=avail_start_min, second=0, microsecond=0)
 
-                # Check if slot is within this availability window
-                if start_hour >= avail_start_hour and end_hour <= avail_end_hour:
+                # Parse availability end time
+                avail_end_hour, avail_end_min = self._parse_time(end_str)
+                avail_end = start_time.replace(hour=avail_end_hour, minute=avail_end_min, second=0, microsecond=0)
+
+                # Check if entire task fits within availability window
+                if start_time >= avail_start and end_time <= avail_end:
                     return True
-            except (ValueError, IndexError):
+            except (ValueError, IndexError, AttributeError):
                 continue
 
         return False
+
+    def _parse_time(self, time_str: str) -> tuple:
+        """Parse time string like '9am' or '9:30pm' and return (hour, minute)."""
+        time_str = time_str.strip().lower()
+        is_pm = "pm" in time_str
+        is_am = "am" in time_str
+
+        # Remove am/pm
+        time_str = time_str.replace("am", "").replace("pm", "").strip()
+
+        # Parse hour and minute
+        if ":" in time_str:
+            hour, minute = map(int, time_str.split(":"))
+        else:
+            hour = int(time_str)
+            minute = 0
+
+        # Convert to 24-hour format
+        if is_pm and hour != 12:
+            hour += 12
+        elif is_am and hour == 12:
+            hour = 0
+
+        return hour, minute
 
     def _find_non_conflicting_slot(self, task: Task, start_time: datetime, end_time: datetime, plan: Schedule) -> Optional[tuple[datetime, datetime]]:
         """Find the nearest available slot around a requested time.
