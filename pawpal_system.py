@@ -430,12 +430,24 @@ class Scheduler:
         except ValueError:
             return None
 
+    def _get_default_start_time(self) -> datetime:
+        """Return the default start time based on owner availability or 09:00 if unavailable."""
+        if self.availability:
+            try:
+                start_str, _ = self.availability[0].split("-")
+                hour, minute = self._parse_time(start_str)
+                return datetime.combine(date.today(), datetime.min.time()).replace(hour=hour, minute=minute)
+            except (ValueError, IndexError, AttributeError):
+                pass
+
+        return datetime.combine(date.today(), datetime.min.time()).replace(hour=9)
+
     def _get_next_recurring_time(self, task: Task) -> datetime:
         """Compute the next date/time for a recurring task based on its frequency."""
         if task.time:
             next_time = task.time
         else:
-            next_time = self._parse_preferred_start(task) or datetime.combine(date.today(), datetime.min.time()).replace(hour=9)
+            next_time = self._parse_preferred_start(task) or self._get_default_start_time()
 
         now = datetime.now()
         if next_time < now:
@@ -538,6 +550,124 @@ class Scheduler:
 
         return None
 
+    def _find_sequential_slot(self, task: Task, earliest_start: datetime, plan: Schedule) -> Optional[tuple[datetime, datetime]]:
+        """Find the next available forward slot from the given earliest start time."""
+        duration = timedelta(minutes=task.duration)
+        candidate = earliest_start
+
+        availability_windows = []
+        if self.availability:
+            for a in self.availability:
+                try:
+                    start_s, end_s = a.split("-")
+                    sh, sm = self._parse_time(start_s)
+                    eh, em = self._parse_time(end_s)
+                    availability_windows.append((sh, sm, eh, em))
+                except Exception:
+                    continue
+        else:
+            availability_windows.append((8, 0, 20, 0))
+
+        for sh, sm, eh, em in availability_windows:
+            window_start = candidate.replace(hour=sh, minute=sm, second=0, microsecond=0)
+            window_end = candidate.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+            if window_end <= window_start:
+                continue
+
+            if candidate < window_start:
+                candidate = window_start
+
+            while candidate + duration <= window_end:
+                candidate_end = candidate + duration
+                if not self._has_conflict(candidate, candidate_end, plan, task) and self._is_within_availability(candidate, candidate_end):
+                    return candidate, candidate_end
+                candidate += timedelta(minutes=15)
+
+        return None
+
+    def _group_recurring_tasks(self, tasks: List[Task]) -> List[tuple]:
+        """Group recurring tasks by pet for intelligent spacing.
+
+        Returns a list of (pet, task_list) tuples.
+        """
+        by_pet = {}
+        for task in tasks:
+            if task.is_recurring() and task.pet:
+                pet_id = id(task.pet)
+                if pet_id not in by_pet:
+                    by_pet[pet_id] = (task.pet, [])
+                by_pet[pet_id][1].append(task)
+        return list(by_pet.values())
+
+    def _schedule_spaced_recurring_tasks(self, pet: Pet, tasks: List[Task], plan: Schedule) -> None:
+        """Intelligently space recurring tasks throughout the day for a pet.
+
+        Distributes tasks evenly across availability windows to minimize conflicts.
+        """
+        if not tasks:
+            return
+
+        availability_windows = self._parse_availability_windows()
+        if not availability_windows:
+            availability_windows = [(8, 0, 20, 0)]
+
+        windows_available = []
+
+        for sh, sm, eh, em in availability_windows:
+            window_start = datetime.combine(date.today(), datetime.min.time()).replace(hour=sh, minute=sm)
+            window_end = datetime.combine(date.today(), datetime.min.time()).replace(hour=eh, minute=em)
+            window_duration = (window_end - window_start).total_seconds() / 60
+            windows_available.append((window_start, window_end, window_duration))
+
+        slot_index = 0
+        for task in tasks:
+            if task.is_recurring():
+                task.time = self._get_next_recurring_time(task)
+
+            best_slot = None
+            for window_start, window_end, window_duration in windows_available:
+                candidate_start = window_start + timedelta(
+                    minutes=(slot_index / len(tasks)) * (window_duration - task.duration)
+                )
+                candidate_start = self._round_to_nearest_15min(candidate_start)
+                candidate_end = candidate_start + timedelta(minutes=task.duration)
+
+                if candidate_end <= window_end and not self._has_conflict(candidate_start, candidate_end, plan, task):
+                    best_slot = (candidate_start, candidate_end)
+                    break
+
+            if best_slot:
+                start, end = best_slot
+                task.schedule(start, end)
+                plan.add_scheduled_task_entry(task, start, end)
+            else:
+                plan.unmet_tasks.append(task)
+                pet_name_str = pet.name if pet else "Unknown Pet"
+                plan.warnings.append(
+                    f"Could not space '{task.description}' for {pet_name_str}; schedule is too tight."
+                )
+
+            slot_index += 1
+
+    def _parse_availability_windows(self) -> List[tuple]:
+        """Parse availability strings into (start_hour, start_min, end_hour, end_min) tuples."""
+        windows = []
+        for avail_window in self.availability:
+            try:
+                start_str, end_str = avail_window.split("-")
+                start_hour, start_min = self._parse_time(start_str)
+                end_hour, end_min = self._parse_time(end_str)
+                windows.append((start_hour, start_min, end_hour, end_min))
+            except (ValueError, IndexError, AttributeError):
+                continue
+        return windows
+
+    def _round_to_nearest_15min(self, dt: datetime) -> datetime:
+        """Round a datetime to the nearest 15-minute increment."""
+        minutes = (dt.minute // 15) * 15
+        return dt.replace(minute=minutes, second=0, microsecond=0)
+
     def next_available_slot(self, duration_minutes: int, earliest: Optional[datetime] = None, pet_name: Optional[str] = None, search_days: int = 7) -> Optional[tuple[datetime, datetime]]:
         """Find the next available time slot for a given duration.
 
@@ -621,72 +751,42 @@ class Scheduler:
     def schedule(self, pet_name: Optional[str] = None, include_completed: bool = False) -> Schedule:
         """Generate a daily schedule of pet tasks for the owner.
 
-        Tasks are retrieved, ordered, and placed into slots. If a task cannot
-        be scheduled because of a same-pet conflict or no available nearby slot,
-        it is added to unmet_tasks and a warning is recorded.
+        Tasks are retrieved, ordered, and placed into slots using intelligent spacing.
+        High-priority and recurring tasks are spaced optimally throughout the day to
+        minimize conflicts.
         """
         self.tasks = self.retrieve_tasks()
         organized_tasks = self.organize_tasks(pet_name=pet_name, include_completed=include_completed)
         plan = Schedule(owner=self.owner, availability=self.availability)
 
-        for task in organized_tasks:
-            if task.is_recurring():
-                task.time = self._get_next_recurring_time(task)
+        recurring_by_pet = self._group_recurring_tasks(organized_tasks)
+        one_time_tasks = [t for t in organized_tasks if not t.is_recurring()]
 
+        for pet, recurring_tasks in recurring_by_pet:
+            if recurring_tasks:
+                self._schedule_spaced_recurring_tasks(pet, recurring_tasks, plan)
+
+        current_start = self._get_default_start_time()
+        for task in one_time_tasks:
             if task.scheduled_start and task.scheduled_end:
-                start_time, end_time = task.scheduled_start, task.scheduled_end
+                start_time = task.scheduled_start
             elif task.time:
-                start_time = task.time
-                end_time = task.time + timedelta(minutes=task.duration)
+                start_time = max(task.time, current_start)
             else:
-                plan.unmet_tasks.append(task)
-                continue
+                start_time = current_start
 
-            # If there's already a slot with the exact same start time for the same pet,
-            # treat this as an unrecoverable conflict: leave the existing slot and mark
-            # this task as unmet with a warning (do not auto-reschedule).
-            if task.pet and any(
-                slot.start_time == start_time and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
-                for slot in plan.scheduled_slots
-            ):
-                # Attempt to chain after the conflicting slot with a 10-minute buffer
-                conflicting_slots = [
-                    slot for slot in plan.scheduled_slots
-                    if slot.start_time == start_time and slot.task and slot.task.pet and slot.task.pet.name == task.pet.name
-                ]
-                conflicting_slot = max(conflicting_slots, key=lambda s: s.end_time) if conflicting_slots else None
-                buffer_minutes = 10
-                if conflicting_slot:
-                    candidate_start = conflicting_slot.end_time + timedelta(minutes=buffer_minutes)
-                    candidate_end = candidate_start + (end_time - start_time)
-                    chained_match = self._find_non_conflicting_slot(task, candidate_start, candidate_end, plan)
-                    if chained_match:
-                        chained_start, chained_end = chained_match
-                        task.schedule(chained_start, chained_end)
-                        plan.add_scheduled_task_entry(task, chained_start, chained_end)
-                        continue
-
-                # If chaining failed, mark unmet and warn
-                plan.unmet_tasks.append(task)
-                pet_name = task.pet.name if task.pet else "Unknown Pet"
-                time_str = start_time.strftime("%Y-%m-%d %H:%M") if start_time else "unspecified"
-                plan.warnings.append(
-                    f"Exact-start conflict: could not schedule '{task.description}' for {pet_name} at {time_str}; another task already starts then."
-                )
-                continue
-
-            match = self._find_non_conflicting_slot(task, start_time, end_time, plan)
-            if match:
-                scheduled_start, scheduled_end = match
+            sequential_match = self._find_sequential_slot(task, start_time, plan)
+            if sequential_match:
+                scheduled_start, scheduled_end = sequential_match
                 task.schedule(scheduled_start, scheduled_end)
                 plan.add_scheduled_task_entry(task, scheduled_start, scheduled_end)
+                current_start = scheduled_end
             else:
                 plan.unmet_tasks.append(task)
-                # Add a lightweight, human-readable warning rather than raising
-                pet_name = task.pet.name if task.pet else "Unknown Pet"
+                pet_name_str = task.pet.name if task.pet else "Unknown Pet"
                 time_str = start_time.strftime("%Y-%m-%d %H:%M") if start_time else "unspecified"
                 plan.warnings.append(
-                    f"Could not schedule '{task.description}' for {pet_name} at {time_str}; no non-conflicting slot found."
+                    f"Could not schedule '{task.description}' for {pet_name_str} at {time_str}; no non-conflicting slot found."
                 )
 
         self.scheduled_plan = plan

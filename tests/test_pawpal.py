@@ -73,6 +73,25 @@ def test_scheduler_handles_recurring_task_without_time():
     assert scheduled_task.scheduled_end - scheduled_task.scheduled_start == timedelta(minutes=30)
 
 
+def test_scheduler_schedules_tasks_sequentially_from_availability():
+    owner = Owner(name="Alex", contact_info="alex@example.com")
+    owner.set_availability(["08:00-20:00"])
+    pet = Pet(name="Buddy", breed="Beagle", age=3, sex="Male")
+    owner.add_pet(pet)
+
+    task1 = Task(description="Morning walk", duration=30, id="t112")
+    task2 = Task(description="Breakfast", duration=20, id="t113")
+    pet.add_task(task1)
+    pet.add_task(task2)
+
+    schedule = owner.generate_plan()
+
+    assert len(schedule.scheduled_slots) == 2
+    assert schedule.scheduled_slots[0].start_time.hour == 8
+    assert schedule.scheduled_slots[0].start_time.minute == 0
+    assert schedule.scheduled_slots[1].start_time == schedule.scheduled_slots[0].end_time
+
+
 def test_scheduler_detects_conflicts_and_reschedules():
     owner = Owner(name="Alex", contact_info="alex@example.com")
     pet = Pet(name="Buddy", breed="Beagle", age=3, sex="Male")
@@ -96,7 +115,7 @@ def test_scheduler_detects_conflicts_and_reschedules():
     assert schedule.scheduled_slots[0].task is task1
     assert schedule.scheduled_slots[1].task is task2
     assert not schedule.unmet_tasks
-    expected_start = start_time + timedelta(minutes=task1.duration + 10)
+    expected_start = start_time + timedelta(minutes=task1.duration)
     assert schedule.scheduled_slots[1].start_time == expected_start
 
 
@@ -205,4 +224,36 @@ def test_next_available_slot_respects_conflicts():
     start, end = slot
     # Both 09:00-09:30 and 09:30-10:00 are taken, so next 30-min slot should be 10:00
     assert start.hour == 10 and start.minute == 0
+
+
+def test_scheduler_spaces_multiple_recurring_tasks_for_same_pet():
+    """Test that multiple recurring tasks for the same pet are spaced throughout the day."""
+    owner = Owner(name="Jordan", contact_info="jordan@example.com")
+    owner.set_availability(["08:00-20:00"])
+    pet = Pet(name="Mochi", breed="dog", age=2, sex="Male")
+    owner.add_pet(pet)
+
+    task1 = Task(description="Morning walk", duration=20, frequency="daily", id="t201")
+    task2 = Task(description="Feeding", duration=15, frequency="daily", id="t202")
+    task3 = Task(description="Evening walk", duration=20, frequency="daily", id="t203")
+
+    pet.add_task(task1)
+    pet.add_task(task2)
+    pet.add_task(task3)
+
+    schedule = owner.generate_plan()
+
+    # All three tasks should be scheduled (no unmet tasks)
+    assert len(schedule.scheduled_slots) == 3
+    assert len(schedule.unmet_tasks) == 0
+
+    # Tasks should not overlap for the same pet
+    for i in range(len(schedule.scheduled_slots) - 1):
+        current_end = schedule.scheduled_slots[i].end_time
+        next_start = schedule.scheduled_slots[i + 1].start_time
+        assert current_end <= next_start, "Tasks should not overlap"
+
+    # Tasks should be spaced out (not all at the same time)
+    start_times = [slot.start_time.hour for slot in schedule.scheduled_slots]
+    assert len(set(start_times)) > 1, "Recurring tasks should be distributed across different hours"
 
