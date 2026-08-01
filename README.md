@@ -171,6 +171,75 @@ tests/test_reliability.py::TestSchedulingReliability::test_schedule_is_determini
 
 **System Reliability:** ⭐⭐⭐ (3 stars) — Good scheduling logic, needs safety improvements for production use.
 
+---
+
+## 🛡️ Reliability & Guardrails
+
+### Test Results
+```
+Total Tests: 57 ✅
+Pass Rate: 100%
+Execution Time: 0.03s
+
+Test Breakdown:
+- Functional Tests: 11 ✅
+- AI Validation Tests: 22 ✅
+- Reliability Tests: 13 ✅
+- Integration Tests: 11 ✅
+```
+
+### Reliability Metrics
+
+| Metric | Result | Status |
+|--------|--------|--------|
+| **Scheduling Determinism** | ✅ Verified | All identical inputs produce identical outputs |
+| **Conflict Prevention (same pet)** | ✅ 100% | No overlapping tasks for same pet |
+| **Availability Enforcement** | ✅ 100% | All tasks within owner availability |
+| **Task Duration Accuracy** | ✅ 100% | Scheduled duration matches configured duration |
+| **Health Adjustments** | ✅ Working | Senior pets get activity reductions |
+| **Medication Flagging** | ✅ Working | All medication tasks flagged for vet review |
+| **Vet Review Warnings** | ✅ Working | Senior + health conditions properly flagged |
+
+### Guardrails (Safety Features)
+
+#### ✅ What the System DOES Protect Against
+
+| Guardrail | How It Works | Status |
+|-----------|---|--------|
+| **Task Conflicts** | Detects overlapping tasks for same pet | ✅ Robust |
+| **Availability Violations** | Prevents scheduling outside owner hours | ✅ Robust |
+| **Duration Errors** | Validates task durations match configuration | ✅ Robust |
+| **Health-Based Adjustments** | Reduces activity for senior/health-compromised pets | ✅ Working |
+| **Vet Review Flags** | Marks medication and health tasks for review | ✅ Working |
+| **Deterministic Output** | Ensures reproducible schedules | ✅ Verified |
+
+#### ⚠️ Known Limitations (What the System CANNOT Protect Against)
+
+| Limitation | Risk | Status |
+|-----------|------|--------|
+| **Medication Interactions** | No drug interaction checking | ❌ Missing |
+| **Execution Verification** | Can't verify tasks actually happened | ❌ Missing |
+| **Multi-Pet Owner Constraints** | Allows simultaneous tasks for different pets | ⚠️ Design limit |
+| **Task Dependencies** | Can't express "med before food" constraints | ⚠️ Design limit |
+| **Neglect Justification** | Schedule can be misused as false proof of care | ⚠️ Cannot prevent |
+
+### Safety Recommendations
+
+**For Personal Use:** ⭐⭐⭐⭐ (4/5 stars)
+- Good for organizing daily pet care
+- Always verify medication timing with vet
+- Monitor actual execution
+
+**For Production Use:** ⭐⭐ (2/5 stars)
+- Needs medication safety layer
+- Needs execution tracking
+- Needs stronger legal disclaimers
+- Needs approval checklist before scheduling
+
+See [MODEL_CARD.md](MODEL_CARD.md) for full ethical considerations and limitations.
+
+---
+
 ## 📐 Smarter Scheduling
 
 > Fill in once you've implemented scheduling logic.
