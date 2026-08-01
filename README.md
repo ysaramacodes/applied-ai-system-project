@@ -247,22 +247,36 @@ Tasks:
 
 ### 📤 OUTPUT:
 
-✅ **Schedule Generated for 2026-08-01**
+```
+✅ Schedule Generated for 2026-08-01
+📊 Summary: 4/4 tasks scheduled (100%)
+⏱️  Total Duration: 90 minutes
+Status: ✅ Optimal
 
-**📊 Summary:** 4/4 tasks scheduled  
-**⏱️ Total Duration:** 90 minutes  
-**Status:** ✅ Optimal
+📌 Daily Schedule:
 
-**📌 Daily Schedule:**
+1. Morning walk
+   ⏰ 08:00 AM - 08:30 AM
+   🐾 Pet: Mochi
+   Duration: 30 min | Priority: critical
 
-| Task | Time | Pet | Duration | Priority |
-|------|------|-----|----------|----------|
-| 1. Morning walk | 08:00 AM - 08:30 AM | Mochi | 30 min | critical |
-| 2. Feeding | 10:45 AM - 10:55 AM | Mochi | 10 min | critical |
-| 3. Evening walk | 1:45 PM - 2:05 PM | Mochi | 20 min | critical |
-| 4. Afternoon play | 4:45 PM - 5:15 PM | Mochi | 30 min | high |
+2. Feeding
+   ⏰ 10:45 AM - 10:55 AM
+   🐾 Pet: Mochi
+   Duration: 10 min | Priority: critical
 
-**✅ All tasks successfully scheduled!**
+3. Evening walk
+   ⏰ 1:45 PM - 2:05 PM
+   🐾 Pet: Mochi
+   Duration: 20 min | Priority: critical
+
+4. Afternoon play
+   ⏰ 4:45 PM - 5:15 PM
+   🐾 Pet: Mochi
+   Duration: 30 min | Priority: high
+
+✅ All tasks successfully scheduled!
+```
 
 
 
@@ -287,41 +301,77 @@ Owner: Sarah (available 7am-9pm)
 
 ### 📤 OUTPUT:
 
-✅ **Schedule Generated for 2026-08-01**
+```
+✅ Schedule Generated for 2026-08-01
+📊 Summary: 6/9 tasks scheduled
+⏱️  Total Duration: 65 minutes
+Status: ⚠️ Review needed
 
-**📊 Summary:** 6/9 tasks scheduled (3 unmet)  
-**⏱️ Total Duration:** 65 minutes  
-**Status:** ⚠️ Review needed
+⚠️ TASKS REQUIRING VET REVIEW:
+Found 4 task(s) that need vet review:
+• Morning walk (Buddy) — health condition, senior pet
+• Medication (Buddy) — medication timing, health condition, senior pet
+• Feeding (Buddy) — health condition, senior pet
+• Afternoon rest (Buddy) — health condition, senior pet
+
+📌 Daily Schedule:
+
+1. Morning walk
+   ⏰ 07:00 AM - 07:14 AM
+   🐾 Pet: Buddy
+   Duration: 14 min | Priority: critical
+   (Auto-adjusted from 20 min due to age + arthritis)
+
+2. Feeding
+   ⏰ 07:00 AM - 07:05 AM
+   🐾 Pet: Luna
+   Duration: 5 min | Priority: critical
+
+3. Medication
+   ⏰ 10:15 AM - 10:18 AM
+   🐾 Pet: Buddy
+   Duration: 3 min | Priority: critical
+
+4. Feeding
+   ⏰ 1:45 PM - 1:52 PM
+   🐾 Pet: Buddy
+   Duration: 7 min | Priority: critical
+   (Auto-adjusted from 10 min due to age + arthritis)
+
+5. Playtime
+   ⏰ 1:45 PM - 2:00 PM
+   🐾 Pet: Luna
+   Duration: 15 min | Priority: medium
+
+6. Afternoon rest
+   ⏰ 5:15 PM - 5:36 PM
+   🐾 Pet: Buddy
+   Duration: 21 min | Priority: high
+   (Auto-adjusted from 30 min due to age + arthritis)
+
+⚠️ Unmet Tasks (3):
+   • Luna's litter box cleaning (10 min)
+   • Buddy's afternoon play (20 min)
+   • Additional grooming task
+
+NOTE: System automatically reduced Buddy's task durations 
+due to senior age (11 years) and arthritis condition.
+```
 
 ---
 
-### ⚠️ TASKS REQUIRING VET REVIEW:
+## Key Takeaways
 
-| Task | Pet | Reason |
-|------|-----|--------|
-| Morning walk | Buddy | health condition, senior pet |
-| Medication | Buddy | medication timing, health condition, senior pet |
-| Feeding | Buddy | health condition, senior pet |
-| Afternoon rest | Buddy | health condition, senior pet |
+**Example 1 (Healthy Pet):**
+- ✅ All tasks scheduled successfully (4/4)
+- Simple, healthy pet with standard care tasks
+- No special warnings or adjustments needed
 
-**⚠️ Important:** All Buddy's tasks need veterinary verification due to age and arthritis condition.
-
----
-
-### 📌 Daily Schedule:
-
-| Task | Time | Pet | Duration | Priority |
-|------|------|-----|----------|----------|
-| 1. Morning walk | 07:00 AM - 07:14 AM | 🐕 Buddy | 14 min | critical |
-| 2. Feeding | 07:00 AM - 07:05 AM | 🐱 Luna | 5 min | critical |
-| 3. Medication | 10:15 AM - 10:18 AM | 🐕 Buddy | 3 min | critical |
-| 4. Feeding | 1:45 PM - 1:52 PM | 🐕 Buddy | 7 min | critical |
-| 5. Playtime | 1:45 PM - 2:00 PM | 🐱 Luna | 15 min | medium |
-| 6. Afternoon rest | 5:15 PM - 5:36 PM | 🐕 Buddy | 21 min | high |
-
-**Note:** System automatically reduced Buddy's walk duration from 20 to 14 min and feeding from 10 to 7 min due to age (11 years) and arthritis condition. ✅
-
-**Unmet Tasks (3):** Luna's playtime overlap resolved in rescheduling, all critical tasks fit within availability.
+**Example 2 (Senior Pet with Health Conditions):**
+- ⚠️ 6/9 tasks scheduled (some couldn't fit)
+- System automatically reduced task durations for health/age
+- All tasks flagged for veterinary review
+- Shows realistic constraints and safety considerations
 
 
 
