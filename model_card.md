@@ -121,23 +121,155 @@
 
 **Scenario:** 1 pet, 4 daily recurring tasks, 8am-8pm availability
 
+#### 🧠 AI Multi-Step Reasoning Chain
+
+```
+Step 1: Analyze Requirements 🔍
+  Pets: 1 | Tasks: 4 | Available: 12.0h | Required: 85 min
+  ✓ Analyzed 1 pet(s) with 4 task(s) requiring 85 minutes across 12.0 available hours
+
+Step 2: Assess Health Constraints 🏥
+  Mochi (dog, age 3): No health conditions detected
+  ✓ No health constraints detected
+
+Step 3: Plan Task Distribution 📊
+  📅 Recurring: 4 tasks (daily)
+  Strategy: Distribute recurring tasks evenly throughout day to prevent clustering
+  ✓ Distributing 4 recurring tasks across available hours
+
+Step 4: Generate Schedule ⚙️
+  Scheduling tasks...
+  Scheduled: 4/4 | Unmet: 0 | Success Rate: 100%
+  ✓ Scheduled 4/4 tasks (100% success rate)
+
+Step 5: Conflict Resolution 🔄
+  ✓ No conflicts detected - all tasks scheduled successfully!
+```
+
+#### ✅ Final Output
+
 ```
 Input:
-  - Pet: Mochi (dog)
-  - Tasks: Walk (20m), Feed (15m), Play (30m), Evening Walk (20m)
-  - Availability: 8am-8pm
+  - Pet: Mochi (dog), age 3 years
+  - Tasks: Morning Walk (20m), Feeding (15m), Play (30m), Evening Walk (20m) - all daily recurring
+  - Availability: 8am-8pm (12 hours)
 
 Output:
   - Scheduled: 4/4 tasks (100%)
-  - Avg Confidence: 88%
-  - Utilization: 65%
-  - Status: ✅ Optimal
+  - Avg Confidence: 100% (all slots placed without conflicts)
+  - Utilization: 12% (85 minutes scheduled out of 720 minutes available)
+  - Status: ✅ All tasks scheduled
+
+Schedule (with spacing to prevent clustering):
+  08:00 - 08:20: Morning Walk (20m, 100% confidence)
+  10:45 - 11:00: Feeding (15m, 100% confidence)
+  13:45 - 14:15: Play (30m, 100% confidence)
+  16:45 - 17:05: Evening Walk (20m, 100% confidence)
+
+Notes:
+  - Tasks are distributed throughout the day rather than clustered
+  - Low utilization (12%) is expected for a single pet with daily tasks
+  - All tasks fit within availability window with no conflicts
+  - Multi-step reasoning demonstrates transparent AI decision-making
+```
+
+---
+
+### Example 2: Constrained Scenario (Multiple Pets with Health Issues)
+
+**Scenario:** 2 pets (senior dog with arthritis + young cat), 7 tasks, limited 9am-5pm availability
+
+#### 🧠 AI Multi-Step Reasoning Chain (with Health Constraints)
+
+```
+Step 1: Analyze Requirements 🔍
+  Pets: 2 | Tasks: 7 | Available: 8.0h | Required: 70 min
+  ✓ Analyzed 2 pet(s) with 7 task(s) requiring 70 minutes across 8.0 available hours
+
+Step 2: Assess Health Constraints 🏥
+  🐕 Buddy (Labrador, age 12): arthritis
+     → Senior pet (≥10 yrs) with health condition
+     → Task durations will be auto-adjusted
+  🐱 Luna (Siamese, age 3): No health conditions
+     → No adjustments needed
+  ✓ Identified health constraints: Buddy needs special care considerations
+
+Step 3: Plan Task Distribution 📊
+  📅 Recurring: 7 tasks
+  Strategy: Distribute with health-based adjustments; prioritize critical medication
+  ✓ Distributing 7 recurring tasks with health adjustments applied
+
+Step 4: Generate Schedule ⚙️
+  Scheduling tasks...
+  Scheduled: 7/7 | Unmet: 0 | Success Rate: 100%
+  ✓ Scheduled 7/7 tasks (100% success rate)
+
+Step 5: Conflict Resolution 🔄
+  ✓ No conflicts detected - all tasks scheduled successfully!
+  ⚠️ 4 tasks flagged for veterinary review (Buddy's medication, walks, rest)
+```
+
+#### 🏥 Medical Safety Decision Chain
+
+```
+Decision Chain - Which tasks require vet review?
+
+✓ Medication (Buddy)
+  → [is_medication:true] → ⚠️ FLAGGED FOR VET REVIEW
+
+✓ Morning walk (Buddy)
+  → [is_activity:true AND is_senior:true AND has_health:true] → ⚠️ FLAGGED FOR VET REVIEW
+
+✓ Feeding (Buddy)
+  → [is_senior:true AND has_health:true] → ⚠️ FLAGGED FOR VET REVIEW
+
+✓ Afternoon rest (Buddy)
+  → [is_senior:true AND has_health:true] → ⚠️ FLAGGED FOR VET REVIEW
+
+✓ Feeding (Luna), Playtime (Luna), Litter box (Luna)
+  → [No medical flags: healthy, young pet] → ✓ No vet review needed
+```
+
+#### ✅ Final Output
+
+```
+Input:
+  - Pet 1: Buddy (Labrador, age 12, has arthritis) — 4 tasks (medication, feeding, walks, rest)
+  - Pet 2: Luna (Siamese, age 3, healthy) — 3 tasks (feeding, playtime, litter box)
+  - Availability: 9am-5pm (8 hours)
+  - Total required: 70 minutes of care
+
+Output:
+  - Scheduled: 7/7 tasks (100%)
+  - Unmet: 0
+  - Utilization: 15%
+  - Avg Confidence: 100%
+  - Health flags: 4 tasks require vet review (Buddy's medication, walks, and rest due to age/arthritis)
 
 Schedule:
-  08:00 - Morning Walk (100% confidence)
-  12:00 - Feeding (88% confidence)
-  14:30 - Play (85% confidence)
-  18:00 - Evening Walk (100% confidence)
+  09:00 - Medication (Buddy, 5m, 100% confidence) ⚠️ Vet review
+            [Decision: is_medication:true → FLAGGED]
+  09:00 - Feeding (Luna, 5m, 100% confidence)
+            [Decision: No medical flags → OK]
+  10:45 - Feeding (Buddy, 10m, 100% confidence)
+            [Decision: is_senior AND has_health → FLAGGED]
+  11:30 - Litter box check (Luna, 5m, 100% confidence)
+            [Decision: No medical flags → OK]
+  12:45 - Morning walk (Buddy, 20m, 100% confidence) ⚠️ Vet review
+            [Decision: is_activity AND is_senior AND has_health → FLAGGED]
+  14:00 - Playtime (Luna, 15m, 100% confidence)
+            [Decision: No medical flags → OK]
+  14:45 - Afternoon rest (Buddy, 30m, 100% confidence) ⚠️ Vet review
+            [Decision: is_senior AND has_health → FLAGGED]
+
+Key Observations:
+  - Multi-step reasoning demonstrates transparent AI decision-making process
+  - Health constraints analyzed and applied before scheduling
+  - Task durations may be adjusted based on pet health (senior/health conditions)
+  - Multiple pets' tasks can be scheduled simultaneously (same time slot)
+  - Medication (critical priority) scheduled early in the day
+  - Medical safety flagged with explicit decision logic for each task
+  - Even with 7 tasks, schedule remains feasible (15% utilization)
 ```
 
 ---
@@ -657,8 +789,18 @@ pytest tests/
 
 ## Reflection and Ethics
 
+This project taught me how much different the app was in the beginning compared to know even though this is nowhere near close to commercial use as I need safety improvements. 
+
+
 The limits are that health adjustments only trigger on exact keyword matches. The system uses a fixed 30 days for every month so if you have a monthly recurring task it will be off by 1-3 days depending on the month.
 
 A sceneraio where my AI can be missused is when they see 90% confidence(scheduling fit) as it means medically safety. I can fix this by removing it and replacing it with warnings like "⚠️ Requires vet review" because also the owner has to go to a vet so they can't just use this to justify pet neglect.
 
-What suprised me while testing was how many hidden failures and how many tests I actually needed for this app.
+What suprised me while testing was how many hidden failures and how many tests I actually needed for this app. Also it made me realize how unreliable it is comapared to actual pet care apps.
+
+
+One instance where an AI suggestion was helpful was when I asked the AI to implement priority scheduling so I can make sure all the important tasks are not being dropped for a task with low priority. An instance where the AI suggestion was not helpful was when I asked the AI to make the first available task happen at the beginning of the users time slot like 6 am. However it kept hardcoding it to 8 am so no matter what the first task was starting at 8 am. 
+
+
+
+

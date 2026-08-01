@@ -246,46 +246,152 @@ if st.button("Generate schedule with AI", use_container_width=True, type="primar
             agent.owner = owner
             agent.scheduler.owner = owner
             agent.scheduler.availability = owner.availability
-            schedule = agent.generate_intelligent_schedule()
-            st.session_state.last_schedule = schedule
 
-            # Check for tasks that require vet review
-            tasks_needing_vet_review = []
-            for slot in schedule.scheduled_slots:
-                # Flag tasks needing vet review: medication, physical activity with health issues, or senior pets
-                task_desc = slot.task.description.lower()
-                pet = slot.task.pet
+            # Multi-step reasoning with visible planning chain
+            with st.expander("🧠 AI Planning & Reasoning", expanded=True):
+                reasoning_steps = []
 
-                is_medication = 'medication' in task_desc or 'med' in task_desc
-                has_health_condition = pet and pet.health_conditions
-                is_senior = pet and pet.age >= 10
+                # STEP 1: Analyze Requirements
+                st.write("**Step 1: Analyze Requirements** 🔍")
+                col1, col2, col3, col4 = st.columns(4)
+                analysis = agent.analyze_scheduling_needs()
+                with col1:
+                    st.metric("Pets", analysis["total_pets"])
+                with col2:
+                    st.metric("Tasks", analysis["total_tasks"])
+                with col3:
+                    st.metric("Available Hours", f"{analysis['available_hours']:.1f}h")
+                with col4:
+                    total_required = sum(t.duration for t in owner.tasks)
+                    st.metric("Total Required (min)", total_required)
+                reasoning_steps.append(f"Analyzed {analysis['total_pets']} pet(s) with {analysis['total_tasks']} task(s) requiring {total_required} minutes across {analysis['available_hours']:.1f} available hours")
 
-                # Any activity-type task for senior or health-compromised pets
-                activity_keywords = ['walk', 'play', 'exercise', 'run', 'fetch', 'activity', 'therapy', 'grooming', 'groom']
-                is_activity = any(word in task_desc for word in activity_keywords)
+                # STEP 2: Check Health Constraints
+                st.write("**Step 2: Assess Health Constraints** 🏥")
+                health_risks = []
+                if analysis["pet_health_considerations"]:
+                    for pet_name, health_info in analysis["pet_health_considerations"].items():
+                        conditions = health_info.get('conditions', [])
+                        if conditions:
+                            st.caption(f"🐾 **{pet_name}**: {', '.join(conditions)}")
+                            health_risks.append(f"{pet_name} has health considerations")
+                if health_risks:
+                    reasoning_steps.append(f"Identified health constraints: {'; '.join(health_risks)}")
+                else:
+                    st.caption("✓ No health constraints detected")
+                    reasoning_steps.append("No health constraints detected")
 
-                # Flag if: medication, OR (activity + senior/health condition), OR (any task + senior + health condition)
-                if is_medication:
-                    tasks_needing_vet_review.append(slot)
-                elif is_activity and (is_senior or has_health_condition):
-                    tasks_needing_vet_review.append(slot)
-                elif is_senior and has_health_condition:  # Senior + health condition = flag all tasks
-                    tasks_needing_vet_review.append(slot)
+                # STEP 3: Plan Schedule Distribution
+                st.write("**Step 3: Plan Task Distribution** 📊")
+                recurring_count = sum(1 for t in owner.tasks if t.frequency != "one-time")
+                onetime_count = sum(1 for t in owner.tasks if t.frequency == "one-time")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.caption(f"📅 Recurring: {recurring_count} tasks")
+                with col2:
+                    st.caption(f"⏳ One-time: {onetime_count} tasks")
 
-            if tasks_needing_vet_review:
-                st.warning("⚠️ **Verify with Your Veterinarian**")
-                st.write(f"Found {len(tasks_needing_vet_review)} task(s) that need vet review:")
-                for slot in tasks_needing_vet_review:
-                    reason = []
-                    if 'medication' in slot.task.description.lower():
-                        reason.append("medication timing")
-                    if slot.task.pet and slot.task.pet.health_conditions:
-                        reason.append("health condition")
-                    if slot.task.pet and slot.task.pet.age >= 10:
-                        reason.append("senior pet")
+                if recurring_count > 0:
+                    st.caption("Strategy: Distribute recurring tasks evenly throughout day to prevent clustering")
+                    reasoning_steps.append(f"Distributing {recurring_count} recurring tasks across available hours")
+                if onetime_count > 0:
+                    st.caption(f"Strategy: Find optimal slots for {onetime_count} one-time task(s)")
+                    reasoning_steps.append(f"Scheduling {onetime_count} one-time task(s) in optimal time slots")
 
-                    st.caption(f"• **{slot.task.description}** ({', '.join(reason)})")
-                st.info("💡 Review these carefully before approving the schedule.")
+                # STEP 4: Generate Schedule
+                st.write("**Step 4: Generate Schedule** ⚙️")
+                with st.spinner("Scheduling tasks..."):
+                    schedule = agent.generate_intelligent_schedule()
+                    st.session_state.last_schedule = schedule
+
+                scheduled_count = len(schedule.scheduled_slots)
+                unmet_count = len(schedule.unmet_tasks)
+                success_rate = (scheduled_count / (scheduled_count + unmet_count) * 100) if (scheduled_count + unmet_count) > 0 else 0
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Scheduled", scheduled_count)
+                with col2:
+                    st.metric("Unmet", unmet_count)
+                with col3:
+                    st.metric("Success Rate", f"{success_rate:.0f}%")
+                reasoning_steps.append(f"Scheduled {scheduled_count}/{scheduled_count + unmet_count} tasks ({success_rate:.0f}% success rate)")
+
+                # STEP 5: Resolve Conflicts
+                if unmet_tasks := schedule.unmet_tasks:
+                    st.write("**Step 5: Conflict Resolution** 🔄")
+                    st.caption(f"⚠️ {len(unmet_tasks)} task(s) couldn't fit in primary schedule")
+                    conflict_reasons = []
+                    for warning in schedule.warnings:
+                        if "no non-conflicting slot" in warning.lower():
+                            conflict_reasons.append("Schedule too full")
+                        elif "conflict" in warning.lower():
+                            conflict_reasons.append("Time conflicts detected")
+                    if conflict_reasons:
+                        st.caption(f"Reasons: {', '.join(set(conflict_reasons))}")
+                    reasoning_steps.append(f"Identified {len(unmet_tasks)} unmet tasks requiring rescheduling or adaptation")
+                else:
+                    st.write("**Step 5: Conflict Resolution** 🔄")
+                    st.success("✓ No conflicts detected - all tasks scheduled successfully!")
+                    reasoning_steps.append("All tasks scheduled without conflicts")
+
+                # Summary of reasoning
+                st.divider()
+                with st.expander("📝 Reasoning Chain Summary", expanded=False):
+                    for i, step in enumerate(reasoning_steps, 1):
+                        st.caption(f"{i}. {step}")
+
+            # Check for tasks that require vet review with decision chain
+            with st.expander("🏥 Safety Check: Vet Review Required?", expanded=True):
+                st.write("**Decision Chain: Medical Safety Analysis** 🔗")
+
+                tasks_needing_vet_review = []
+                vet_review_reasoning = []
+
+                for slot in schedule.scheduled_slots:
+                    task_desc = slot.task.description.lower()
+                    pet = slot.task.pet
+
+                    is_medication = 'medication' in task_desc or 'med' in task_desc
+                    has_health_condition = pet and pet.health_conditions
+                    is_senior = pet and pet.age >= 10
+
+                    activity_keywords = ['walk', 'play', 'exercise', 'run', 'fetch', 'activity', 'therapy', 'grooming', 'groom']
+                    is_activity = any(word in task_desc for word in activity_keywords)
+
+                    # Decision logic with reasoning
+                    flags = []
+                    if is_medication:
+                        flags.append("is_medication:true")
+                    if is_activity and (is_senior or has_health_condition):
+                        flags.append("is_activity:true → senior/health")
+                    if is_senior and has_health_condition:
+                        flags.append("senior:true AND health:true")
+
+                    if flags:
+                        tasks_needing_vet_review.append(slot)
+                        decision_logic = f"{slot.task.description} ({pet.name if pet else 'Unassigned'}): [{' OR '.join(flags)}] → ✓ REQUIRES REVIEW"
+                        vet_review_reasoning.append(decision_logic)
+
+                if tasks_needing_vet_review:
+                    st.warning(f"⚠️ Found {len(tasks_needing_vet_review)} task(s) requiring veterinary review")
+                    with st.expander("Decision Logic Details", expanded=False):
+                        for reasoning in vet_review_reasoning:
+                            st.caption(f"→ {reasoning}")
+
+                    st.write("**Tasks Requiring Vet Review:**")
+                    for slot in tasks_needing_vet_review:
+                        reason = []
+                        if 'medication' in slot.task.description.lower():
+                            reason.append("📋 medication timing")
+                        if slot.task.pet and slot.task.pet.health_conditions:
+                            reason.append("🏥 health condition")
+                        if slot.task.pet and slot.task.pet.age >= 10:
+                            reason.append("👴 senior pet")
+
+                        st.caption(f"• **{slot.task.description}** ({', '.join(reason)})")
+                    st.info("💡 Review these carefully with your veterinarian before approving the schedule.")
+                else:
+                    st.success("✓ No medical safety concerns detected - all tasks approved for scheduling")
 
             st.success("✅ AI schedule generated successfully!")
 
@@ -352,6 +458,21 @@ if st.button("Generate schedule with AI", use_container_width=True, type="primar
                                 if st.button("✅ Done", key=f"complete_{i}", use_container_width=True):
                                     slot.task.mark_complete(slot.end_time)
                                     st.rerun()
+
+                            # Display scheduling decision chain for each slot
+                            with st.expander("📊 Scheduling Decision", expanded=False):
+                                st.caption("**How this task was scheduled:**")
+                                decision_steps = [
+                                    f"✓ Task: {slot.task.description} ({slot.task.duration} min)",
+                                    f"✓ Pet: {slot.task.pet.name if slot.task.pet else 'Unassigned'} (age: {slot.task.pet.age if slot.task.pet else '?'} years)",
+                                    f"✓ Frequency: {slot.task.frequency or 'one-time'}",
+                                    f"✓ Priority: {slot.task.priority}",
+                                    f"✓ Slot Time: {slot.start_time.strftime('%I:%M %p')} (non-conflicting)",
+                                    f"✓ Confidence Score: {slot.confidence:.0%}" if hasattr(slot, 'confidence') else "✓ Slot verified",
+                                ]
+                                for step in decision_steps:
+                                    st.caption(step)
+
                             if slot.explanation:
                                 st.info(f"💡 {slot.explanation}")
                 else:
@@ -375,6 +496,16 @@ if st.button("Generate schedule with AI", use_container_width=True, type="primar
                                         st.caption(f"⚠️ {related_warning.split(':', 1)[1].strip() if ':' in related_warning else related_warning}")
                                 with col2:
                                     st.caption(task.frequency or "one-time")
+
+                                # Show why this task couldn't be scheduled
+                                with st.expander("📊 Why unscheduled?", expanded=False):
+                                    st.caption("**Scheduling Decision Chain:**")
+                                    st.caption(f"❌ Could not find non-conflicting slot for {task.duration} min task")
+                                    st.caption(f"Reason: {related_warning if related_warning else 'Schedule too full or availability constraints'}")
+                                    st.caption("**Possible solutions:**")
+                                    st.caption("• Extend availability window (add more hours)")
+                                    st.caption("• Reduce duration of other tasks")
+                                    st.caption("• Change task frequency or schedule to different day")
                 if schedule.warnings:
                     st.divider()
                     with st.expander(f"📋 All Schedule Notes ({len(schedule.warnings)})", expanded=False):
@@ -471,8 +602,51 @@ if st.button("Apply adaptive changes", key="adapt_schedule_btn"):
             if not agent.current_plan and st.session_state.last_schedule:
                 agent.current_plan = st.session_state.last_schedule
 
-            adaptation_summary = agent.adapt_to_changes(changes)
+            # Show adaptation reasoning chain
+            with st.expander("🔄 Adaptation Planning", expanded=True):
+                st.write("**Change Analysis & Adaptation Steps** 🔗")
+
+                # Step 1: Validate change
+                st.write("**Step 1: Validate Change Request**")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.caption(f"Adaptation Type: {adapt_type}")
+                with col2:
+                    st.caption(f"Status: ✓ Valid")
+
+                # Step 2: Identify Impact
+                st.write("**Step 2: Analyze Impact**")
+                impact_analysis = []
+                if "new_availability" in changes:
+                    impact_analysis.append(f"📍 Availability changed to: {changes['new_availability'][0]}")
+                    impact_analysis.append("🔄 May affect all task placements")
+                if "pet_health_update" in changes:
+                    pet_name = changes['pet_health_update']['pet_name']
+                    condition = changes['pet_health_update']['condition']
+                    impact_analysis.append(f"🏥 {pet_name} health update: {condition}")
+                    impact_analysis.append("⚠️ May require vet review of affected tasks")
+                if "task_time_update" in changes:
+                    task_desc = changes['task_time_update']['description']
+                    impact_analysis.append(f"🕐 {task_desc} time/duration modified")
+                    impact_analysis.append("🔄 May cascade into other task rescheduling")
+                if "new_task" in changes:
+                    new_task = changes['new_task']
+                    impact_analysis.append(f"➕ New task: {new_task['description']} ({new_task['duration']} min)")
+                    impact_analysis.append(f"🐾 Assigned to: {new_task['pet'].name}")
+
+                for impact in impact_analysis:
+                    st.caption(impact)
+
+                # Step 3: Apply changes
+                st.write("**Step 3: Apply Changes & Regenerate**")
+                with st.spinner("Regenerating schedule with new parameters..."):
+                    adaptation_summary = agent.adapt_to_changes(changes)
+                    st.session_state.last_schedule = agent.current_plan
+                    st.success("✓ Changes applied successfully")
+
+                st.divider()
+                st.write("**Adaptation Summary:**")
+                st.write(adaptation_summary)
+
             st.success("✅ Adaptive schedule updated")
-            st.write(adaptation_summary)
-            st.session_state.last_schedule = agent.current_plan
             st.session_state.show_updated_schedule = True

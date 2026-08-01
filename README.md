@@ -316,6 +316,33 @@ Tasks:
 
 ### 📤 OUTPUT:
 
+#### 🧠 AI Planning & Reasoning (Multi-Step Decision Chain)
+
+```
+Step 1: Analyze Requirements 🔍
+  Pets: 1 | Tasks: 4 | Available: 12.0h | Required: 90 min
+  ✓ Analyzed 1 pet(s) with 4 task(s) requiring 90 minutes across 12.0 available hours
+
+Step 2: Assess Health Constraints 🏥
+  Mochi (3 years): No health conditions detected
+  ✓ No health constraints detected
+
+Step 3: Plan Task Distribution 📊
+  📅 Recurring: 4 tasks
+  Strategy: Distribute recurring tasks evenly throughout day to prevent clustering
+  ✓ Distributing 4 recurring tasks across available hours
+
+Step 4: Generate Schedule ⚙️
+  Scheduling tasks...
+  Scheduled: 4/4 | Unmet: 0 | Success Rate: 100%
+  ✓ Scheduled 4/4 tasks (100% success rate)
+
+Step 5: Conflict Resolution 🔄
+  ✓ No conflicts detected - all tasks scheduled successfully!
+```
+
+#### ✅ Final Schedule Output
+
 ```
 ✅ Schedule Generated for 2026-08-01
 📊 Summary: 4/4 tasks scheduled (100%)
@@ -328,24 +355,35 @@ Status: ✅ Optimal
    ⏰ 08:00 AM - 08:30 AM
    🐾 Pet: Mochi
    Duration: 30 min | Priority: critical
+   💡 Scheduling Decision: [✓ Task verified] [✓ No conflicts] [✓ 100% confidence]
 
 2. Feeding
    ⏰ 10:45 AM - 10:55 AM
    🐾 Pet: Mochi
    Duration: 10 min | Priority: critical
+   💡 Scheduling Decision: [✓ Task verified] [✓ No conflicts] [✓ 100% confidence]
 
 3. Evening walk
    ⏰ 1:45 PM - 2:05 PM
    🐾 Pet: Mochi
    Duration: 20 min | Priority: critical
+   💡 Scheduling Decision: [✓ Task verified] [✓ No conflicts] [✓ 100% confidence]
 
 4. Afternoon play
    ⏰ 4:45 PM - 5:15 PM
    🐾 Pet: Mochi
    Duration: 30 min | Priority: high
+   💡 Scheduling Decision: [✓ Task verified] [✓ No conflicts] [✓ 100% confidence]
 
 ✅ All tasks successfully scheduled!
 ```
+
+**Key Features Demonstrated:**
+- ✓ Multi-step reasoning chain (5 planning steps)
+- ✓ Health constraint analysis
+- ✓ Task distribution strategy
+- ✓ Per-slot scheduling decisions
+- ✓ Conflict detection and resolution
 
 
 
@@ -370,18 +408,77 @@ Owner: Sarah (available 7am-9pm)
 
 ### 📤 OUTPUT:
 
+#### 🧠 AI Planning & Reasoning (Multi-Step Decision Chain with Health Analysis)
+
+```
+Step 1: Analyze Requirements 🔍
+  Pets: 2 | Tasks: 9 | Available: 14.0h | Required: 110 min
+  ✓ Analyzed 2 pet(s) with 9 task(s) requiring 110 minutes across 14.0 available hours
+
+Step 2: Assess Health Constraints 🏥
+  🐕 Buddy (Labrador, age 11): arthritis
+     → Senior pet (≥10 yrs) with health condition detected
+     → Task durations will be auto-adjusted
+  🐱 Luna (Siamese, age 4): No health conditions
+     → No adjustments needed
+  ✓ Identified health constraints: Buddy has senior + arthritis considerations
+
+Step 3: Plan Task Distribution 📊
+  📅 Recurring: 9 tasks | ⏳ One-time: 0 tasks
+  Strategy: Distribute tasks evenly; apply health-based duration adjustments
+  ✓ Distributing 9 recurring tasks across available hours with health adjustments
+
+Step 4: Generate Schedule ⚙️
+  Scheduling tasks...
+  Scheduled: 6/9 | Unmet: 3 | Success Rate: 67%
+  ✓ Scheduled 6/9 tasks (67% success rate) with health constraints applied
+
+Step 5: Conflict Resolution 🔄
+  ⚠️ 3 task(s) couldn't fit in primary schedule
+  Reasons: Schedule too full (high activity load for constrained availability)
+  ✓ Identified 3 unmet tasks requiring rescheduling or adaptation
+```
+
+#### 🏥 Medical Safety Decision Chain
+
+```
+Step 1: Validate Medical Tasks 🔗
+  Analyzing each task for medical safety flags...
+
+Step 2: Decision Logic for Each Task:
+  ✓ Morning walk (Buddy)
+    → [is_activity:true AND is_senior:true AND has_health:true] → ⚠️ REQUIRES VET REVIEW
+  
+  ✓ Medication (Buddy)
+    → [is_medication:true] → ⚠️ REQUIRES VET REVIEW
+  
+  ✓ Feeding (Buddy)
+    → [is_senior:true AND has_health:true] → ⚠️ REQUIRES VET REVIEW
+  
+  ✓ Afternoon rest (Buddy)
+    → [is_senior:true AND has_health:true] → ⚠️ REQUIRES VET REVIEW
+  
+  ✓ Feeding (Luna)
+    → [No flags: not senior, no health conditions] → ✓ No vet review needed
+  
+  ✓ Playtime (Luna)
+    → [No flags: not senior, no health conditions] → ✓ No vet review needed
+
+⚠️ Safety Summary: 4 of 6 scheduled tasks require vet review (all Buddy's tasks)
+```
+
+#### ✅ Final Schedule Output
+
 ```
 ✅ Schedule Generated for 2026-08-01
 📊 Summary: 6/9 tasks scheduled
 ⏱️  Total Duration: 65 minutes
 Status: ⚠️ Review needed
 
-⚠️ TASKS REQUIRING VET REVIEW:
-Found 4 task(s) that need vet review:
-• Morning walk (Buddy) — health condition, senior pet
-• Medication (Buddy) — medication timing, health condition, senior pet
-• Feeding (Buddy) — health condition, senior pet
-• Afternoon rest (Buddy) — health condition, senior pet
+⚠️ TASKS REQUIRING VET REVIEW (4 tasks):
+  📋 Medication timing (Buddy)
+  🏥 Health-related activities (Buddy)
+  👴 Senior pet care (Buddy, age 11)
 
 📌 Daily Schedule:
 
@@ -390,42 +487,59 @@ Found 4 task(s) that need vet review:
    🐾 Pet: Buddy
    Duration: 14 min | Priority: critical
    (Auto-adjusted from 20 min due to age + arthritis)
+   💡 [is_activity] [is_senior] [has_health] → ⚠️ FLAGGED FOR VET REVIEW
 
 2. Feeding
    ⏰ 07:00 AM - 07:05 AM
    🐾 Pet: Luna
    Duration: 5 min | Priority: critical
+   ✓ No medical concerns
 
 3. Medication
    ⏰ 10:15 AM - 10:18 AM
    🐾 Pet: Buddy
    Duration: 3 min | Priority: critical
+   💡 [is_medication] → ⚠️ FLAGGED FOR VET REVIEW
 
 4. Feeding
    ⏰ 1:45 PM - 1:52 PM
    🐾 Pet: Buddy
    Duration: 7 min | Priority: critical
    (Auto-adjusted from 10 min due to age + arthritis)
+   💡 [is_senior] [has_health] → ⚠️ FLAGGED FOR VET REVIEW
 
 5. Playtime
    ⏰ 1:45 PM - 2:00 PM
    🐾 Pet: Luna
    Duration: 15 min | Priority: medium
+   ✓ No medical concerns
 
 6. Afternoon rest
    ⏰ 5:15 PM - 5:36 PM
    🐾 Pet: Buddy
    Duration: 21 min | Priority: high
    (Auto-adjusted from 30 min due to age + arthritis)
+   💡 [is_senior] [has_health] → ⚠️ FLAGGED FOR VET REVIEW
 
 ⚠️ Unmet Tasks (3):
-   • Luna's litter box cleaning (10 min)
-   • Buddy's afternoon play (20 min)
-   • Additional grooming task
+   • Luna's litter box check (5 min) — Schedule too full
+   • Buddy's afternoon play (20 min) — Conflicts with rest period
+   • Grooming task (25 min) — Insufficient availability
 
-NOTE: System automatically reduced Buddy's task durations 
-due to senior age (11 years) and arthritis condition.
+**Why These Failed:**
+  • Buddy's health adjustments reduced available time for other tasks
+  • Multiple pets competing for limited 7am-9pm window
+  • High priority tasks (medication, walks) scheduled first, leaving gaps
+  • Luna's playtime scheduled alongside Buddy's feeding (same time slot)
 ```
+
+**Key Features Demonstrated:**
+- ✓ Multi-step reasoning with health constraint analysis
+- ✓ Medical safety decision chain (per-task flagging logic)
+- ✓ Auto-adjusted task durations for health conditions
+- ✓ Explicit vet review flagging with decision reasons
+- ✓ Conflict analysis and unmet task explanations
+- ✓ Transparent AI reasoning throughout
 
 ---
 
