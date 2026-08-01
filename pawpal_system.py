@@ -3,9 +3,13 @@ PawPal+ System Classes
 A pet care scheduling assistant for busy owners.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, date, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 @dataclass
@@ -215,12 +219,25 @@ class Owner:
 
 
 @dataclass
+class ConfidenceScore:
+    """Represents confidence in a scheduling decision."""
+    score: float
+    reasoning: str
+    factors: Dict[str, float] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if not 0 <= self.score <= 1:
+            raise ValueError("Confidence score must be between 0 and 1")
+
+
+@dataclass
 class ScheduledSlot:
     """A time slot within a schedule with an assigned task."""
     task: Task
     start_time: datetime
     end_time: datetime
     explanation: str = ""
+    confidence: Optional[ConfidenceScore] = None
 
 
 @dataclass
@@ -235,6 +252,26 @@ class Schedule:
     unmet_tasks: List[Task] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     status: str = "draft"
+    errors: List[Dict] = field(default_factory=list)
+    logs: List[str] = field(default_factory=list)
+
+    def log_event(self, level: str, message: str) -> None:
+        """Log an event during scheduling."""
+        timestamp = datetime.now().isoformat()
+        log_entry = f"[{timestamp}] {level}: {message}"
+        self.logs.append(log_entry)
+        logger.log(getattr(logging, level, logging.INFO), message)
+
+    def record_error(self, error_type: str, task_description: str, reason: str) -> None:
+        """Record an error that occurred during scheduling."""
+        error_record = {
+            "timestamp": datetime.now().isoformat(),
+            "type": error_type,
+            "task": task_description,
+            "reason": reason
+        }
+        self.errors.append(error_record)
+        logger.error(f"{error_type} - Task: {task_description}, Reason: {reason}")
 
     def add_scheduled_task_entry(self, task: Task, start_time: datetime, end_time: datetime) -> None:
         """Add a scheduled task entry to the schedule."""
@@ -608,9 +645,11 @@ class Scheduler:
         if not tasks:
             return
 
+        plan.log_event("INFO", f"Spacing {len(tasks)} recurring tasks for {pet.name}")
         availability_windows = self._parse_availability_windows()
         if not availability_windows:
             availability_windows = [(8, 0, 20, 0)]
+            plan.log_event("DEBUG", f"No availability set; using default 8am-8pm")
 
         windows_available = []
 
@@ -633,17 +672,32 @@ class Scheduler:
                 candidate_start = self._round_to_nearest_15min(candidate_start)
                 candidate_end = candidate_start + timedelta(minutes=task.duration)
 
-                if candidate_end <= window_end and not self._has_conflict(candidate_start, candidate_end, plan, task):
+                has_conflict = self._has_conflict(candidate_start, candidate_end, plan, task)
+
+                if candidate_end <= window_end and not has_conflict:
                     best_slot = (candidate_start, candidate_end)
                     break
 
             if best_slot:
                 start, end = best_slot
                 task.schedule(start, end)
-                plan.add_scheduled_task_entry(task, start, end)
+                has_preferred = bool(task.preferred_time_slot)
+                confidence = self._calculate_slot_confidence(
+                    task, has_conflict=False, has_preferred_time=has_preferred,
+                    is_within_availability=True
+                )
+                slot = ScheduledSlot(task=task, start_time=start, end_time=end, confidence=confidence)
+                plan.scheduled_slots.append(slot)
+                plan.total_duration += (end - start).seconds // 60
+                plan.log_event("INFO", f"Scheduled '{task.description}' for {pet.name} at {start.strftime('%H:%M')} (confidence: {confidence.score:.2f})")
             else:
                 plan.unmet_tasks.append(task)
                 pet_name_str = pet.name if pet else "Unknown Pet"
+                plan.record_error(
+                    "SCHEDULING_FAILED",
+                    task.description,
+                    f"Could not find available slot for {pet_name_str}; schedule is too tight"
+                )
                 plan.warnings.append(
                     f"Could not space '{task.description}' for {pet_name_str}; schedule is too tight."
                 )
@@ -667,6 +721,51 @@ class Scheduler:
         """Round a datetime to the nearest 15-minute increment."""
         minutes = (dt.minute // 15) * 15
         return dt.replace(minute=minutes, second=0, microsecond=0)
+
+    def _calculate_slot_confidence(self, task: Task, has_conflict: bool,
+                                   has_preferred_time: bool, is_within_availability: bool) -> ConfidenceScore:
+        """Calculate confidence score for a scheduling decision.
+
+        Factors considered:
+        - No conflicts (high confidence boost)
+        - Preferred time honored (medium boost)
+        - Within availability (baseline requirement)
+        - Task recurrence (recurring = slightly higher confidence)
+        """
+        factors = {}
+        base_score = 0.5
+
+        if is_within_availability:
+            factors["availability"] = 0.2
+            base_score += 0.2
+        else:
+            factors["availability"] = -0.2
+            base_score -= 0.2
+
+        if not has_conflict:
+            factors["no_conflict"] = 0.3
+            base_score += 0.3
+        else:
+            factors["conflict"] = -0.3
+            base_score -= 0.3
+
+        if has_preferred_time:
+            factors["preferred_time"] = 0.15
+            base_score += 0.15
+
+        if task.is_recurring():
+            factors["recurring"] = 0.05
+            base_score += 0.05
+
+        final_score = max(0.0, min(1.0, base_score))
+
+        reasoning = f"Scheduled {task.description} with confidence {final_score:.2f}"
+        if not has_conflict:
+            reasoning += " (no conflicts)"
+        if has_preferred_time:
+            reasoning += " (preferred time honored)"
+
+        return ConfidenceScore(score=final_score, reasoning=reasoning, factors=factors)
 
     def next_available_slot(self, duration_minutes: int, earliest: Optional[datetime] = None, pet_name: Optional[str] = None, search_days: int = 7) -> Optional[tuple[datetime, datetime]]:
         """Find the next available time slot for a given duration.
