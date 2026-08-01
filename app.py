@@ -252,14 +252,24 @@ if st.button("Generate schedule with AI", use_container_width=True, type="primar
             # Check for tasks that require vet review
             tasks_needing_vet_review = []
             for slot in schedule.scheduled_slots:
-                # Flag medication, health-related tasks, and senior pets
+                # Flag tasks needing vet review: medication, physical activity with health issues, or senior pets
                 task_desc = slot.task.description.lower()
-                is_medication = 'medication' in task_desc or 'med' in task_desc
-                is_health_related = any(word in task_desc for word in ['medication', 'med', 'health', 'wound', 'injury', 'therapy', 'exercise', 'activity'])
-                has_health_condition = slot.task.pet and slot.task.pet.health_conditions
-                is_senior = slot.task.pet and slot.task.pet.age >= 10
+                pet = slot.task.pet
 
-                if is_medication or (is_health_related and (has_health_condition or is_senior)):
+                is_medication = 'medication' in task_desc or 'med' in task_desc
+                has_health_condition = pet and pet.health_conditions
+                is_senior = pet and pet.age >= 10
+
+                # Any activity-type task for senior or health-compromised pets
+                activity_keywords = ['walk', 'play', 'exercise', 'run', 'fetch', 'activity', 'therapy', 'grooming', 'groom']
+                is_activity = any(word in task_desc for word in activity_keywords)
+
+                # Flag if: medication, OR (activity + senior/health condition), OR (any task + senior + health condition)
+                if is_medication:
+                    tasks_needing_vet_review.append(slot)
+                elif is_activity and (is_senior or has_health_condition):
+                    tasks_needing_vet_review.append(slot)
+                elif is_senior and has_health_condition:  # Senior + health condition = flag all tasks
                     tasks_needing_vet_review.append(slot)
 
             if tasks_needing_vet_review:
