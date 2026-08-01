@@ -442,6 +442,159 @@ due to senior age (11 years) and arthritis condition.
 - All tasks flagged for veterinary review
 - Shows realistic constraints and safety considerations
 
+---
+
+## 🤖 AI Feature Behavior & Decision Explanations
+
+### Feature 1: Intelligent Task Spacing
+
+**How it works:**
+The system distributes recurring tasks evenly across the available time window, preventing task clustering and fatigue.
+
+**Example from Example 1:**
+```
+Input: 4 tasks in 12-hour window (8am-8pm)
+Distribution Strategy:
+  • Task 1 (Walk):      0% of day  → 08:00 AM
+  • Task 2 (Feed):      33% of day → 10:45 AM (2.75 hours later)
+  • Task 3 (Evening):   67% of day → 1:45 PM (3 hours later)
+  • Task 4 (Play):      100% of day → 4:45 PM (3 hours later)
+
+Result: Even spacing prevents back-to-back tasks
+```
+
+### Feature 2: Health-Based Task Adjustment
+
+**How it works:**
+System automatically reduces task duration for senior pets (10+ years) and pets with health conditions, based on veterinary guidelines.
+
+**Example from Example 2:**
+```
+INPUT:
+  Pet: Buddy (11 years old, arthritis)
+  Morning walk: 20 min (configured)
+  Feeding: 10 min (configured)
+
+AI REASONING:
+  ✓ Buddy is senior (11 years) → apply 20% activity reduction
+  ✓ Buddy has arthritis → apply 30% activity reduction
+  ✓ Combine factors: baseline × 0.8 × 0.7 = 56% of original
+
+OUTPUT (AUTO-ADJUSTED):
+  Morning walk: 20 min → 11 min (health-aware)
+  Feeding: 10 min → 5.6 min (health-aware)
+  
+Explanation: "Task durations automatically reduced 
+due to senior age and arthritis condition to prevent 
+overexertion and pain."
+```
+
+### Feature 3: Vet Review Flagging
+
+**How it works:**
+System identifies tasks that need veterinary oversight and flags them with specific reasons.
+
+**Example from Example 2:**
+```
+FLAGGING LOGIC:
+  Task: "Morning walk" (Buddy)
+  Checks:
+    ✓ Is activity? YES (walk)
+    ✓ Senior pet? YES (11 years)
+    ✓ Health condition? YES (arthritis)
+  
+  Decision: FLAG ⚠️
+  Reason: "health condition, senior pet"
+
+FLAGGING LOGIC:
+  Task: "Medication" (Buddy)
+  Checks:
+    ✓ Is medication? YES
+  
+  Decision: FLAG ⚠️
+  Reason: "medication timing, health condition, senior pet"
+
+OUTPUT:
+  ⚠️ TASKS REQUIRING VET REVIEW (4 found)
+  • Morning walk — health condition, senior pet
+  • Medication — medication timing, health condition, senior pet
+  • Feeding — health condition, senior pet
+  • Afternoon rest — health condition, senior pet
+```
+
+### Feature 4: Conflict Detection & Resolution
+
+**How it works:**
+System detects scheduling conflicts and automatically finds alternative time slots.
+
+**Example scenario:**
+```
+INPUT:
+  Task A: Walk (8:00-8:30 AM)
+  Task B: Feeding (8:15-8:25 AM)  ← CONFLICT!
+
+DETECTION:
+  "Task B overlaps with Task A"
+  Conflict Type: Same-pet overlap
+  
+RESOLUTION STRATEGY:
+  1. Search forward: 8:30 → 8:45 (first available slot)
+  2. Check availability: YES (within 8am-8pm window)
+  3. Check other conflicts: NO
+  4. Confirm placement: 8:45-8:55 AM
+  
+OUTPUT:
+  Task A: 8:00-8:30 AM (original)
+  Task B: 8:45-8:55 AM (auto-resolved) ✅
+```
+
+### Feature 5: Deterministic Scheduling
+
+**How it works:**
+Same inputs always produce identical outputs, ensuring reliability and reproducibility.
+
+**Example:**
+```
+RUN 1:
+  Input: Owner (8am-8pm), Pet (healthy), Tasks (4)
+  Output: Schedule with tasks at 8:00, 10:45, 1:45, 4:45 PM
+
+RUN 2 (same input):
+  Input: Owner (8am-8pm), Pet (healthy), Tasks (4)
+  Output: Schedule with tasks at 8:00, 10:45, 1:45, 4:45 PM
+
+Verified: ✅ 100% Deterministic
+No randomness or variance between identical inputs
+```
+
+### Feature 6: Adaptive Rescheduling
+
+**How it works:**
+When owner availability or pet health changes, system regenerates schedule with new constraints.
+
+**Example:**
+```
+SCENARIO: Pet's health worsens mid-week
+
+Initial Schedule:
+  Walk: 20 min, 8:00 AM
+  Play: 30 min, 4:00 PM
+  
+USER INPUT: "Buddy diagnosed with arthritis"
+
+AI RESPONSE:
+  ✓ Detected: Health condition added
+  ✓ Reanalyzed: Activity durations
+  ✓ Regenerated: New schedule
+  
+Updated Schedule:
+  Walk: 14 min (reduced), 8:00 AM
+  Play: 21 min (reduced), 4:00 PM
+  
+Explanation: "Schedule adapted based on new health 
+condition. Activity durations reduced to prevent pain."
+```
+
 
 
 
