@@ -78,53 +78,98 @@ pytest -v
 
 ## 🖥️ Sample Output
 
+### Web UI (Streamlit)
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+When you run `streamlit run app.py`, the app displays:
 
+**Schedule Output:**
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+✅ Schedule Generated for 2026-08-01
+📊 Summary: 4/4 tasks scheduled
+⏱️  Total Duration: 90 minutes
+
+📌 Daily Schedule:
+
+1. MORNING WALK
+   ⏰ 08:00 AM - 08:30 AM
+   🐾 Pet: Mochi
+   Priority: critical
+
+2. FEEDING
+   ⏰ 10:45 AM - 10:55 AM
+   🐾 Pet: Mochi
+   Priority: critical
+
+3. EVENING WALK
+   ⏰ 1:45 PM - 2:05 PM
+   🐾 Pet: Mochi
+   Priority: critical
+
+4. AFTERNOON PLAY
+   ⏰ 4:45 PM - 5:15 PM
+   🐾 Pet: Mochi
+   Priority: high
+
+✅ All tasks successfully scheduled!
 ```
 
-
-
-
-Owner: Alex
-Pets: ['Biscuit', 'Mittens']
-Tasks: 3
-Today's Schedule:
-08:00 - 08:30: Morning walk (Biscuit)
-12:00 - 12:15: Lunchtime feeding (Biscuit)
-18:00 - 18:20: Evening play (Mittens)
+**Vet Review Warnings (for health-sensitive tasks):**
+```
+⚠️ TASKS REQUIRING VET REVIEW
+Found 4 task(s) that need vet review:
+• Morning walk (Buddy) — health condition, senior pet
+• Medication (Buddy) — medication timing, health condition, senior pet
+• Feeding (Buddy) — health condition, senior pet
+• Afternoon rest (Buddy) — health condition, senior pet
+```
 
 
 
 ## 🧪 Testing PawPal+
 
+### Run Tests
+
 ```bash
-# Run the full test suite:
+# Run the full test suite (57 tests)
 pytest
 
-# Run with coverage:
+# Run with verbose output
+pytest -v
+
+# Run with coverage report
 pytest --cov
+
+# Run specific test file
+pytest tests/test_reliability.py
 ```
 
-Sample test output:
- python3 -m pytest
+### Sample Output
 
- My tests covers task completion, task scheduling, recurring task scheduling, conflict detection, ordering, daily and weekly reccuring tasks.
-
+**Quick summary:**
+```bash
+$ pytest
+.........................................................                [100%]
+57 passed in 0.02s
 ```
-# Paste your pytest output here
-                                                                                                         [100%]
 
-============================================================= 8 passed in 0.01s =============================================================
+**Verbose output (excerpt):**
+```
+test_agent_integration.py::test_agent_initialization PASSED              [  1%]
+test_ai_validation.py::TestConfidenceScoring::test_confidence_score_initialization PASSED [ 21%]
+test_pawpal.py::test_task_mark_complete_sets_completion_status PASSED [ 59%]
+tests/test_reliability.py::TestSchedulingReliability::test_schedule_is_deterministic PASSED [ 87%]
 
+============================== 57 passed in 0.03s ==============================
+```
 
-Syetem Reliability is 4 stars based on my tests.
+### Test Coverage
+
+- **Functional Tests**: Task scheduling, conflicts, recurring tasks, spacing
+- **AI Validation Tests**: Confidence scoring, logging, error handling  
+- **Reliability Tests**: Conflict prevention, availability compliance, determinism
+- **Integration Tests**: Agent scheduling, health adjustments, adaptation
+
+**System Reliability:** ⭐⭐⭐ (3 stars) — Good scheduling logic, needs safety improvements for production use.
 
 ## 📐 Smarter Scheduling
 
