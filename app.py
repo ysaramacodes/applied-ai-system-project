@@ -249,13 +249,32 @@ if st.button("Generate schedule with AI", use_container_width=True, type="primar
             schedule = agent.generate_intelligent_schedule()
             st.session_state.last_schedule = schedule
 
-            # FIX 2: Automation bias warning - check for low confidence scores
-            low_confidence_tasks = [slot for slot in schedule.scheduled_slots if slot.confidence and slot.confidence.score < 0.7]
-            if low_confidence_tasks:
-                st.warning("⚠️ **Low Confidence Tasks Detected**")
-                st.write(f"Found {len(low_confidence_tasks)} task(s) with confidence <70%:")
-                for slot in low_confidence_tasks:
-                    st.caption(f"• {slot.task.description}: {slot.confidence.score:.0%} - {slot.confidence.reasoning}")
+            # Check for tasks that require vet review
+            tasks_needing_vet_review = []
+            for slot in schedule.scheduled_slots:
+                # Flag medication, health-related tasks, and senior pets
+                task_desc = slot.task.description.lower()
+                is_medication = 'medication' in task_desc or 'med' in task_desc
+                is_health_related = any(word in task_desc for word in ['medication', 'med', 'health', 'wound', 'injury', 'therapy', 'exercise', 'activity'])
+                has_health_condition = slot.task.pet and slot.task.pet.health_conditions
+                is_senior = slot.task.pet and slot.task.pet.age >= 10
+
+                if is_medication or (is_health_related and (has_health_condition or is_senior)):
+                    tasks_needing_vet_review.append(slot)
+
+            if tasks_needing_vet_review:
+                st.warning("⚠️ **Verify with Your Veterinarian**")
+                st.write(f"Found {len(tasks_needing_vet_review)} task(s) that need vet review:")
+                for slot in tasks_needing_vet_review:
+                    reason = []
+                    if 'medication' in slot.task.description.lower():
+                        reason.append("medication timing")
+                    if slot.task.pet and slot.task.pet.health_conditions:
+                        reason.append("health condition")
+                    if slot.task.pet and slot.task.pet.age >= 10:
+                        reason.append("senior pet")
+
+                    st.caption(f"• **{slot.task.description}** ({', '.join(reason)})")
                 st.info("💡 Review these carefully before approving the schedule.")
 
             st.success("✅ AI schedule generated successfully!")
