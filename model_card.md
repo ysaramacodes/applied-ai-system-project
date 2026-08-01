@@ -230,7 +230,7 @@ Each task scores 0-1 based on factors:
 
 ---
 
-## Reflection and Ethics
+
 
 ### Design Philosophy
 
@@ -523,16 +523,11 @@ pytest tests/
 }
 ```
 
----
 
-## Contact & Support
+## Reflection and Ethics
 
-- **Creator**: Yousif Rajaasarama
-- **Email**: yousifrajaasarama@gmail.com
-- **GitHub**: https://github.com/yousifsarama/applied-ai-system-project
+The limits are that health adjustments only trigger on exact keyword matches. The system uses a fixed 30 days for every month so if you have a monthly recurring task it will be off by 1-3 days depending on the month.
 
----
+A sceneraio where my AI can be missused is when they see 90% confidence(scheduling fit) as it means medically safety. I can fix this by removing it and replacing it with warnings like "⚠️ Requires vet review" because also the owner has to go to a vet so they can't just use this to justify pet neglect.
 
-**Model Card Version**: 1.0  
-**Last Updated**: August 1, 2026  
-**Status**: ✅ Active
+

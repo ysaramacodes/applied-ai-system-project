@@ -152,39 +152,94 @@ pip install -r requirements.txt
 streamlit run app.py
 
 
-Input:
+EXAMPLE 1: Simple Single Pet ✅
+Owner:    Sarah (sarah@example.com)
+Pet:      Biscuit (Golden Retriever, 4 years old, Female)
+Availability: 8am - 8pm (12 hours)
 
-Owner name: Jordan
-Pet name: Mochi
-Species: dog
-Age: 2
-Sex: Male
 Tasks:
-Morning walk — duration 20 minutes — frequency daily
-Breakfast feeding — duration 10 minutes — frequency daily
-Play session — duration 30 minutes — frequency one-time
-Availability: 8am-8pm
-Resulting AI output:
+  1. Morning walk    → 30 min, daily, CRITICAL
+  2. Feeding         → 10 min, daily, CRITICAL
+  3. Afternoon play  → 30 min, daily, HIGH
+  4. Evening walk    → 20 min, daily, CRITICAL
 
-✅ AI schedule generated successfully!
-Metrics:
-Total Pets: 1
-Total Tasks: 3
-Available Hours: 12.0h
-Daily schedule:
-Morning walk — 08:00 AM - 08:20 AM — Pet: Mochi
-Breakfast feeding — 08:20 AM - 08:30 AM — Pet: Mochi
-Play session — 08:30 AM - 09:00 AM — Pet: Mochi
-AI explanation example:
-Task: Morning walk (20 min) for Mochi | Scheduled: 08:00 AM - 08:20 AM | Frequency: daily | Decision: Scheduled to fit Mochi's needs → Placed within owner availability window → Ordered by priority and recurrence
-Recommendation:
-✓ Schedule is optimal for current setup.
+Output (Both Runs Identical ✅)
+
+📌 SCHEDULE FOR 2026-08-01:
+
+1. MORNING WALK
+   ⏰ 08:00 AM - 08:30 AM (30 min)
+   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+
+2. FEEDING
+   ⏰ 10:45 AM - 10:55 AM (10 min)
+   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+
+3. EVENING WALK
+   ⏰ 1:45 PM - 2:05 PM (20 min)
+   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+
+4. AFTERNOON PLAY
+   ⏰ 4:45 PM - 5:15 PM (30 min)
+   🐾 Biscuit | Priority: HIGH | Confidence: 100%
+
+📊 Summary:
+   ✅ Tasks scheduled: 4/4 (100%)
+   ⏱️ Total duration: 90 minutes
+   📈 Utilization: 12.5% of available time
+   ❌ Unmet tasks: 0
 
 
 
+2nd Example
 
+Input
 
+Owner:    Alex (alex@example.com)
+Availability: 8am - 8pm (12 hours)
 
+🐾 Pet 1: Max (Labrador, 3 years old, Male)
+   • Morning walk      → 30 min, daily, CRITICAL
+   • Feeding           → 10 min, daily, CRITICAL
+   • Evening walk      → 25 min, daily, CRITICAL
+   • Play fetch        → 20 min, daily, HIGH
+
+🐱 Pet 2: Luna (Siamese Cat, 5 years old, Female)
+   • Feeding           → 5 min, daily, CRITICAL
+   • Litter box clean  → 10 min, daily, HIGH
+   • Playtime          → 15 min, daily, MEDIUM
+
+Output (Both Runs Identical ✅)
+
+📅 SCHEDULE FOR 2026-08-01 (7 tasks, 115 min total):
+
+1. MORNING WALK
+   ⏰ 08:00 AM - 08:30 AM (30 min)
+   🐾 Max | Priority: CRITICAL | Confidence: 100%
+
+2. FEEDING
+   ⏰ 08:00 AM - 08:05 AM (5 min)
+   🐱 Luna | Priority: CRITICAL | Confidence: 100%
+
+3. FEEDING
+   ⏰ 10:45 AM - 10:55 AM (10 min)
+   🐾 Max | Priority: CRITICAL | Confidence: 100%
+
+4. LITTER BOX CLEANING
+   ⏰ 11:45 AM - 11:55 AM (10 min)
+   🐱 Luna | Priority: HIGH | Confidence: 100%
+
+5. EVENING WALK
+   ⏰ 1:45 PM - 2:10 PM (25 min)
+   🐾 Max | Priority: CRITICAL | Confidence: 100%
+
+6. PLAYTIME
+   ⏰ 3:45 PM - 4:00 PM (15 min)
+   🐱 Luna | Priority: MEDIUM | Confidence: 100%
+
+7. PLAY FETCH
+   ⏰ 4:45 PM - 5:05 PM (20 min)
+   🐾 Max | Priority: HIGH | Confidence: 100%
 
 
 

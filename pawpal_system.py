@@ -643,6 +643,7 @@ class Scheduler:
         """Intelligently space recurring tasks throughout the day for a pet.
 
         Distributes tasks evenly across availability windows to minimize conflicts.
+        FIX 4: Now properly distributes across multiple windows, not just the first one.
         """
         if not tasks:
             return
@@ -654,12 +655,14 @@ class Scheduler:
             plan.log_event("DEBUG", f"No availability set; using default 8am-8pm")
 
         windows_available = []
+        total_available_minutes = 0
 
         for sh, sm, eh, em in availability_windows:
             window_start = datetime.combine(date.today(), datetime.min.time()).replace(hour=sh, minute=sm)
             window_end = datetime.combine(date.today(), datetime.min.time()).replace(hour=eh, minute=em)
             window_duration = (window_end - window_start).total_seconds() / 60
             windows_available.append((window_start, window_end, window_duration))
+            total_available_minutes += window_duration
 
         slot_index = 0
         for task in tasks:
@@ -667,18 +670,45 @@ class Scheduler:
                 task.time = self._get_next_recurring_time(task)
 
             best_slot = None
-            for window_start, window_end, window_duration in windows_available:
-                candidate_start = window_start + timedelta(
-                    minutes=(slot_index / len(tasks)) * (window_duration - task.duration)
-                )
-                candidate_start = self._round_to_nearest_15min(candidate_start)
-                candidate_end = candidate_start + timedelta(minutes=task.duration)
+            # Calculate target position across ALL windows combined
+            target_position = (slot_index / max(len(tasks), 1)) * total_available_minutes
+            plan.log_event("INFO", f"📍 Task '{task.description}': slot_index={slot_index}, target_position={target_position:.0f}min (total_avail={total_available_minutes:.0f})")
 
-                has_conflict = self._has_conflict(candidate_start, candidate_end, plan, task)
+            # Find which window this target position falls into
+            current_position = 0
+            for window_idx, (window_start, window_end, window_duration) in enumerate(windows_available):
+                # Check if target position falls in this window
+                window_end_pos = current_position + window_duration
 
-                if candidate_end <= window_end and not has_conflict:
-                    best_slot = (candidate_start, candidate_end)
-                    break
+                # Only try this window if target position falls within it
+                if current_position <= target_position < window_end_pos:
+                    # Try to fit task in this window at target position
+                    position_in_window = target_position - current_position
+                    candidate_start = window_start + timedelta(minutes=max(0, position_in_window - task.duration/2))
+                    candidate_start = self._round_to_nearest_15min(candidate_start)
+                    candidate_end = candidate_start + timedelta(minutes=task.duration)
+
+                    has_conflict = self._has_conflict(candidate_start, candidate_end, plan, task)
+
+                    # Check if task fits in this window
+                    if candidate_end <= window_end and not has_conflict:
+                        best_slot = (candidate_start, candidate_end)
+                        break
+
+                current_position = window_end_pos
+
+            # If target window didn't work, try any available window forward
+            if not best_slot:
+                current_position = 0
+                for window_start, window_end, window_duration in windows_available:
+                    # Try beginning of each window
+                    candidate_start = window_start
+                    candidate_end = candidate_start + timedelta(minutes=task.duration)
+                    has_conflict = self._has_conflict(candidate_start, candidate_end, plan, task)
+
+                    if candidate_end <= window_end and not has_conflict:
+                        best_slot = (candidate_start, candidate_end)
+                        break
 
             if best_slot:
                 start, end = best_slot
@@ -691,7 +721,9 @@ class Scheduler:
                 slot = ScheduledSlot(task=task, start_time=start, end_time=end, confidence=confidence)
                 plan.scheduled_slots.append(slot)
                 plan.total_duration += (end - start).seconds // 60
-                plan.log_event("INFO", f"Scheduled '{task.description}' for {pet.name} at {start.strftime('%H:%M')} (confidence: {confidence.score:.2f})")
+                # Log which window it ended up in
+                window_letter = "MORNING" if start.hour < 12 else "EVENING"
+                plan.log_event("INFO", f"✅ Scheduled '{task.description}' for {pet.name} at {start.strftime('%H:%M')} ({window_letter})")
             else:
                 plan.unmet_tasks.append(task)
                 pet_name_str = pet.name if pet else "Unknown Pet"
@@ -725,22 +757,31 @@ class Scheduler:
         return dt.replace(minute=minutes, second=0, microsecond=0)
 
     def _adjust_task_for_pet_health(self, task: Task) -> Task:
-        """FIX 3: Adjust task duration based on pet age and health. Return adjusted copy."""
+        """FIX 3 (IMPROVED): Adjust task duration based on pet age and health with robust keyword matching."""
         if not task.pet:
             return task
 
         adjusted_duration = task.duration
+        applied_reductions = []
 
         # Senior pet adjustment (≥10 years): reduce activity by 20%
         if task.pet.age >= 10 and task.description.lower() in ['walk', 'play', 'exercise', 'running']:
-            adjusted_duration = int(task.duration * 0.8)
+            adjusted_duration = int(adjusted_duration * 0.8)
+            applied_reductions.append("age 10+")
 
-        # Health condition adjustments
+        # Health condition adjustments with robust keyword matching
         if task.pet.health_conditions:
-            if any(cond.lower() in ['arthritis', 'joint', 'limping', 'injury'] for cond in task.pet.health_conditions):
-                adjusted_duration = int(task.duration * 0.7)
-            if any(cond.lower() in ['heart', 'cardiac'] for cond in task.pet.health_conditions):
-                adjusted_duration = int(task.duration * 0.6)
+            # Mobility/joint issues: 30% reduction
+            mobility_keywords = ['arthritis', 'joint', 'limping', 'injury', 'stiff', 'mobility', 'weakness', 'pain', 'hip dysplasia', 'ortho']
+            if any(any(kw in cond.lower() for kw in mobility_keywords) for cond in task.pet.health_conditions):
+                adjusted_duration = int(adjusted_duration * 0.7)
+                applied_reductions.append("mobility issue")
+
+            # Cardiac issues: 40% reduction
+            cardiac_keywords = ['heart', 'cardiac', 'cardio', 'arrhythmia', 'murmur', 'valve']
+            if any(any(kw in cond.lower() for kw in cardiac_keywords) for cond in task.pet.health_conditions):
+                adjusted_duration = int(adjusted_duration * 0.6)
+                applied_reductions.append("cardiac condition")
 
         # Create new task with adjusted duration
         if adjusted_duration != task.duration:
@@ -765,42 +806,58 @@ class Scheduler:
                                    has_preferred_time: bool, is_within_availability: bool) -> ConfidenceScore:
         """Calculate confidence score for a scheduling decision.
 
-        FIX 2: Priority-dependent weights for critical vs optional tasks.
+        FIX 2 (IMPROVED): Objective scheduling quality (not biased by priority).
+        Confidence now reflects actual scheduling constraints met, not priority level.
         """
         factors = {}
-        base_score = 0.5
+        base_score = 0.5  # Starting point: neutral
 
+        # Objective factor 1: Within availability (0-0.2)
         if is_within_availability:
-            factors["availability"] = 0.2
+            factors["within_availability"] = 0.2
             base_score += 0.2
         else:
-            factors["availability"] = -0.2
+            factors["outside_availability"] = -0.2
             base_score -= 0.2
 
-        # FIX 2: Weight conflicts heavier for critical tasks
-        conflict_weight = {"critical": 0.5, "high": 0.35, "medium": 0.3, "low": 0.2}.get(task.priority, 0.3)
+        # Objective factor 2: No conflicts (0.3 fixed, not priority-dependent)
+        # FIXED: Use same weight for all priorities to prevent bias
         if not has_conflict:
-            factors["no_conflict"] = conflict_weight
-            base_score += conflict_weight
+            factors["no_conflicts"] = 0.3
+            base_score += 0.3
         else:
-            factors["conflict"] = -conflict_weight
-            base_score -= conflict_weight
+            factors["has_conflicts"] = -0.3
+            base_score -= 0.3
 
+        # Objective factor 3: Preferred time honored (0-0.15)
         if has_preferred_time:
-            factors["preferred_time"] = 0.15
+            factors["preferred_time_honored"] = 0.15
             base_score += 0.15
 
+        # Objective factor 4: Recurring task (0-0.05)
         if task.is_recurring():
-            factors["recurring"] = 0.05
+            factors["recurring_task"] = 0.05
             base_score += 0.05
 
         final_score = max(0.0, min(1.0, base_score))
 
-        reasoning = f"Scheduled {task.description} (priority: {task.priority}) with confidence {final_score:.2f}"
+        # Reasoning explains what was measured, not priority judgment
+        reasoning = f"Scheduling quality: {final_score:.0%}"
+        details = []
+        if is_within_availability:
+            details.append("within availability")
         if not has_conflict:
-            reasoning += " (no conflicts)"
+            details.append("no conflicts")
         if has_preferred_time:
-            reasoning += " (preferred time honored)"
+            details.append("preferred time honored")
+        if task.is_recurring():
+            details.append("recurring")
+
+        if details:
+            reasoning += f" ({', '.join(details)})"
+
+        # Add note about priority in parentheses (informational, not scoring)
+        reasoning += f" — Priority: {task.priority}"
 
         return ConfidenceScore(score=final_score, reasoning=reasoning, factors=factors)
 

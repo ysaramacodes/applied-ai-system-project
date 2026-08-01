@@ -49,7 +49,7 @@ class TestConfidenceScoring:
 
         assert confidence.score > 0.5
         assert "no conflicts" in confidence.reasoning
-        assert confidence.factors["no_conflict"] == 0.3
+        assert confidence.factors["no_conflicts"] == 0.3
 
     def test_calculate_slot_confidence_with_conflicts(self):
         """Test lower confidence when task has scheduling conflicts."""
@@ -68,7 +68,7 @@ class TestConfidenceScoring:
         )
 
         assert confidence.score < 0.7
-        assert confidence.factors["conflict"] == -0.3
+        assert confidence.factors["has_conflicts"] == -0.3
 
     def test_calculate_slot_confidence_preferred_time(self):
         """Test confidence boost when preferred time is honored."""
@@ -91,7 +91,7 @@ class TestConfidenceScoring:
             is_within_availability=True
         )
 
-        assert confidence.factors["preferred_time"] == 0.15
+        assert confidence.factors["preferred_time_honored"] == 0.15
         assert "preferred time honored" in confidence.reasoning
 
     def test_calculate_slot_confidence_recurring_task(self):
@@ -115,7 +115,7 @@ class TestConfidenceScoring:
             is_within_availability=True
         )
 
-        assert confidence.factors["recurring"] == 0.05
+        assert confidence.factors["recurring_task"] == 0.05
         assert confidence.score >= 0.75  # High confidence for reliable recurring
 
     def test_confidence_score_reflected_in_scheduled_slot(self):

@@ -55,6 +55,7 @@ if "care_agent" not in st.session_state:
 else:
     st.session_state.care_agent.owner = owner
     st.session_state.care_agent.scheduler.owner = owner
+    st.session_state.care_agent.scheduler.availability = owner.availability
 
 # Initialize adaptive schedule state
 if "show_updated_schedule" not in st.session_state:
@@ -222,13 +223,18 @@ st.caption("Generate a daily care plan based on tasks and availability.")
 
 col1, col2 = st.columns(2)
 with col1:
-    availability_input = st.text_input("Availability (e.g., 8am-5pm)", value="8am-8pm")
+    if "availability_input" not in st.session_state:
+        st.session_state.availability_input = "8am-8pm"
+    availability_input = st.text_input("Availability (e.g., 8am-5pm)", value=st.session_state.availability_input, key="availability_widget")
 with col2:
     if st.button("Set availability"):
-        owner.set_availability([availability_input])
-        st.session_state.care_agent.scheduler.availability = [availability_input]
+        st.session_state.availability_input = st.session_state.availability_widget
+        # Split by comma to support multiple windows (e.g., "6am-9am, 6pm-9pm")
+        availability_windows = [w.strip() for w in st.session_state.availability_widget.split(",")]
+        owner.set_availability(availability_windows)
+        st.session_state.care_agent.scheduler.availability = availability_windows
         st.session_state.show_updated_schedule = True
-        st.success(f"✅ Availability set to: {availability_input}")
+        st.success(f"✅ Availability set to: {st.session_state.availability_widget}")
 
 if st.button("Generate schedule with AI", use_container_width=True, type="primary", key="generate_with_ai_btn"):
     st.session_state.show_updated_schedule = True
