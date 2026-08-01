@@ -152,94 +152,97 @@ pip install -r requirements.txt
 streamlit run app.py
 
 
-EXAMPLE 1: Simple Single Pet ✅
-Owner:    Sarah (sarah@example.com)
-Pet:      Biscuit (Golden Retriever, 4 years old, Female)
-Availability: 8am - 8pm (12 hours)
+## EXAMPLE 1: Simple Single Pet ✅
+
+### 📥 INPUT:
+```
+Owner: Jordan (available 8am-8pm)
+Pet: Mochi (Golden Retriever, 3 years old, Female)
 
 Tasks:
-  1. Morning walk    → 30 min, daily, CRITICAL
-  2. Feeding         → 10 min, daily, CRITICAL
-  3. Afternoon play  → 30 min, daily, HIGH
-  4. Evening walk    → 20 min, daily, CRITICAL
+  • Morning walk — 30 min, daily, critical
+  • Feeding — 10 min, daily, critical
+  • Afternoon play — 30 min, daily, high
+  • Evening walk — 20 min, daily, critical
+```
 
-Output (Both Runs Identical ✅)
+### 📤 OUTPUT:
 
-📌 SCHEDULE FOR 2026-08-01:
+✅ **Schedule Generated for 2026-08-01**
 
-1. MORNING WALK
-   ⏰ 08:00 AM - 08:30 AM (30 min)
-   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+**📊 Summary:** 4/4 tasks scheduled  
+**⏱️ Total Duration:** 90 minutes  
+**Status:** ✅ Optimal
 
-2. FEEDING
-   ⏰ 10:45 AM - 10:55 AM (10 min)
-   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+**📌 Daily Schedule:**
 
-3. EVENING WALK
-   ⏰ 1:45 PM - 2:05 PM (20 min)
-   🐾 Biscuit | Priority: CRITICAL | Confidence: 100%
+| Task | Time | Pet | Duration | Priority |
+|------|------|-----|----------|----------|
+| 1. Morning walk | 08:00 AM - 08:30 AM | Mochi | 30 min | critical |
+| 2. Feeding | 10:45 AM - 10:55 AM | Mochi | 10 min | critical |
+| 3. Evening walk | 1:45 PM - 2:05 PM | Mochi | 20 min | critical |
+| 4. Afternoon play | 4:45 PM - 5:15 PM | Mochi | 30 min | high |
 
-4. AFTERNOON PLAY
-   ⏰ 4:45 PM - 5:15 PM (30 min)
-   🐾 Biscuit | Priority: HIGH | Confidence: 100%
-
-📊 Summary:
-   ✅ Tasks scheduled: 4/4 (100%)
-   ⏱️ Total duration: 90 minutes
-   📈 Utilization: 12.5% of available time
-   ❌ Unmet tasks: 0
+**✅ All tasks successfully scheduled!**
 
 
 
 2nd Example
 
-Input
+## EXAMPLE 2: Senior Pet with Health Conditions ⚠️
 
-Owner:    Alex (alex@example.com)
-Availability: 8am - 8pm (12 hours)
+### 📥 INPUT:
+```
+Owner: Sarah (available 7am-9pm)
 
-🐾 Pet 1: Max (Labrador, 3 years old, Male)
-   • Morning walk      → 30 min, daily, CRITICAL
-   • Feeding           → 10 min, daily, CRITICAL
-   • Evening walk      → 25 min, daily, CRITICAL
-   • Play fetch        → 20 min, daily, HIGH
+🐕 Pet 1: Buddy (Labrador, 11 years old, Male) — arthritis
+   • Morning walk — 20 min, daily, critical
+   • Medication — 5 min, daily, critical
+   • Feeding — 10 min, daily, critical
+   • Afternoon rest — 30 min, daily, high
 
-🐱 Pet 2: Luna (Siamese Cat, 5 years old, Female)
-   • Feeding           → 5 min, daily, CRITICAL
-   • Litter box clean  → 10 min, daily, HIGH
-   • Playtime          → 15 min, daily, MEDIUM
+🐱 Pet 2: Luna (Siamese Cat, 4 years old, Female)
+   • Feeding — 5 min, daily, critical
+   • Playtime — 15 min, daily, medium
+```
 
-Output (Both Runs Identical ✅)
+### 📤 OUTPUT:
 
-📅 SCHEDULE FOR 2026-08-01 (7 tasks, 115 min total):
+✅ **Schedule Generated for 2026-08-01**
 
-1. MORNING WALK
-   ⏰ 08:00 AM - 08:30 AM (30 min)
-   🐾 Max | Priority: CRITICAL | Confidence: 100%
+**📊 Summary:** 6/9 tasks scheduled (3 unmet)  
+**⏱️ Total Duration:** 65 minutes  
+**Status:** ⚠️ Review needed
 
-2. FEEDING
-   ⏰ 08:00 AM - 08:05 AM (5 min)
-   🐱 Luna | Priority: CRITICAL | Confidence: 100%
+---
 
-3. FEEDING
-   ⏰ 10:45 AM - 10:55 AM (10 min)
-   🐾 Max | Priority: CRITICAL | Confidence: 100%
+### ⚠️ TASKS REQUIRING VET REVIEW:
 
-4. LITTER BOX CLEANING
-   ⏰ 11:45 AM - 11:55 AM (10 min)
-   🐱 Luna | Priority: HIGH | Confidence: 100%
+| Task | Pet | Reason |
+|------|-----|--------|
+| Morning walk | Buddy | health condition, senior pet |
+| Medication | Buddy | medication timing, health condition, senior pet |
+| Feeding | Buddy | health condition, senior pet |
+| Afternoon rest | Buddy | health condition, senior pet |
 
-5. EVENING WALK
-   ⏰ 1:45 PM - 2:10 PM (25 min)
-   🐾 Max | Priority: CRITICAL | Confidence: 100%
+**⚠️ Important:** All Buddy's tasks need veterinary verification due to age and arthritis condition.
 
-6. PLAYTIME
-   ⏰ 3:45 PM - 4:00 PM (15 min)
-   🐱 Luna | Priority: MEDIUM | Confidence: 100%
+---
 
-7. PLAY FETCH
-   ⏰ 4:45 PM - 5:05 PM (20 min)
-   🐾 Max | Priority: HIGH | Confidence: 100%
+### 📌 Daily Schedule:
+
+| Task | Time | Pet | Duration | Priority |
+|------|------|-----|----------|----------|
+| 1. Morning walk | 07:00 AM - 07:14 AM | 🐕 Buddy | 14 min | critical |
+| 2. Feeding | 07:00 AM - 07:05 AM | 🐱 Luna | 5 min | critical |
+| 3. Medication | 10:15 AM - 10:18 AM | 🐕 Buddy | 3 min | critical |
+| 4. Feeding | 1:45 PM - 1:52 PM | 🐕 Buddy | 7 min | critical |
+| 5. Playtime | 1:45 PM - 2:00 PM | 🐱 Luna | 15 min | medium |
+| 6. Afternoon rest | 5:15 PM - 5:36 PM | 🐕 Buddy | 21 min | high |
+
+**Note:** System automatically reduced Buddy's walk duration from 20 to 14 min and feeding from 10 to 7 min due to age (11 years) and arthritis condition. ✅
+
+**Unmet Tasks (3):** Luna's playtime overlap resolved in rescheduling, all critical tasks fit within availability.
 
 
 
@@ -269,4 +272,4 @@ I built this system this way beacuse I feel like it's as realistic as the app ca
 # 
             46 passed in 0.02s 
 
-After adding and creating more tests my system passed all tests especially all 13 reliability tests so I know I have full trust that my system is reliable. 
+After adding and creating more tests my system passed all tests especially all 13 reliability tests so I know I have full trust that my system is reliable and good for basic use. 
