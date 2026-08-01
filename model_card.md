@@ -230,6 +230,162 @@ Each task scores 0-1 based on factors:
 
 ---
 
+## Reflection and Ethics
+
+### Design Philosophy
+
+PawPal+ was built with **human-centric AI** at its core. Rather than creating a system that makes autonomous decisions, we designed one that:
+
+1. **Explains Every Decision** - Each scheduling choice includes a confidence score and reasoning
+2. **Requires Human Approval** - No task executes without user review
+3. **Records Everything** - Complete audit trail for accountability
+4. **Fails Gracefully** - Errors are captured and reported, not hidden
+
+### Key Ethical Decisions Made
+
+#### 1. Transparency Over Optimization
+- **Decision**: Show confidence scores instead of just "yes/no" scheduling
+- **Rationale**: Users deserve to understand WHY the AI made each choice
+- **Trade-off**: Slightly longer to explain than to just execute
+- **Outcome**: Users trust the system more and catch errors faster
+
+#### 2. Human-in-the-Loop Over Automation
+- **Decision**: Require approval before schedule execution
+- **Rationale**: Pet health is too important for fully autonomous decisions
+- **Trade-off**: Less convenient than full automation
+- **Outcome**: Users maintain control and responsibility
+
+#### 3. Local Storage Over Cloud
+- **Decision**: Session-based storage, no persistent database
+- **Rationale**: Pet health data is sensitive; shouldn't be stored permanently
+- **Trade-off**: Can't maintain history across sessions
+- **Outcome**: Better privacy, reduced liability
+
+#### 4. Constraints First Over Features
+- **Decision**: Validate constraints strictly before scheduling
+- **Rationale**: A schedule that violates constraints is worthless
+- **Trade-off**: Sometimes can't schedule everything (unmet tasks)
+- **Outcome**: Schedules are reliable and trustworthy
+
+#### 5. Error Recovery Over Error Prevention
+- **Decision**: When conflicts occur, the system tries multiple resolution strategies
+- **Rationale**: Perfect prevention is impossible; good recovery matters more
+- **Trade-off**: More complex logic, but more robust behavior
+- **Outcome**: System continues working even when constraints are tight
+
+### Ethical Tensions & Resolutions
+
+#### Tension 1: Convenience vs. Pet Welfare
+- **Tension**: Users want easy automation; pets need careful planning
+- **Resolution**: Require human approval, provide confidence metrics
+- **Result**: Slower (inconvenient) but safer (responsible)
+
+#### Tension 2: Privacy vs. Learning
+- **Tension**: Better learning requires persistent data; privacy requires not storing it
+- **Resolution**: No persistent storage; system doesn't learn across sessions
+- **Result**: No cross-user pattern learning; better privacy
+
+#### Tension 3: Transparency vs. Simplicity
+- **Tension**: Explaining decisions adds complexity
+- **Resolution**: Show confidence scores with simple interpretations
+- **Result**: More information without overwhelming users
+
+#### Tension 4: Optimization vs. Interpretability
+- **Tension**: Complex algorithms could optimize better; simple ones are easier to understand
+- **Resolution**: Chose interpretable algorithms (task spacing, scoring)
+- **Result**: Users can understand and trust the decisions
+
+### What We Got Right
+
+✅ **Transparent Decision-Making**
+- Every decision has a confidence score with factors
+- Users can see WHY the AI chose each time
+- Audit trail allows tracing back to root causes
+
+✅ **Fail-Safe Design**
+- Errors don't break the entire schedule
+- Unmet tasks are clearly labeled with reasons
+- Suggestions provided for how to fix issues
+
+✅ **Human Authority**
+- AI recommends, human decides
+- User can override any AI decision
+- Final responsibility stays with human
+
+✅ **Accountability**
+- Complete logs of what happened and when
+- Error tracking with context
+- No "black box" decisions
+
+### What Remains Challenging
+
+⚠️ **Knowing When to Override**
+- How confident should users be before trusting low-confidence suggestions?
+- Is 70% confidence good enough to schedule a pet's medication?
+
+⚠️ **Handling Edge Cases**
+- What if a pet gets sick mid-day? System can't adapt in real-time
+- What if owner circumstances change? System doesn't learn long-term patterns
+
+⚠️ **Balancing Multiple Pets**
+- When resources are limited, which pet's needs take priority?
+- System tries to distribute fairly, but fairness itself is a value judgment
+
+⚠️ **Preventing Misuse**
+- Could someone use this to neglect pets by over-relying on automation?
+- System has guardrails, but can't prevent poor user choices
+
+### Lessons Learned
+
+1. **Transparency Builds Trust** - Users prefer an AI that explains itself over one that's more "intelligent" but opaque
+
+2. **Constraints Are Features** - Saying "I can't" with reasons is better than trying everything and failing silently
+
+3. **Humans + AI > AI Alone** - Combining human judgment with AI recommendations produced better results than either alone
+
+4. **Failure Modes Matter** - How you handle errors is more important than preventing all errors
+
+5. **Default to Human Control** - When in doubt, let humans make the decision
+
+### Principles We Followed
+
+| Principle | How We Applied It |
+|-----------|------------------|
+| **Beneficence** | System helps owners provide better pet care |
+| **Non-maleficence** | Medical disclaimers, error tracking, no automation without approval |
+| **Autonomy** | Humans retain control; AI is advisory |
+| **Justice** | Fair distribution of owner time across pets |
+| **Transparency** | Every decision explained with confidence + reasoning |
+| **Accountability** | Complete audit trail; no hidden decisions |
+
+### Unresolved Questions
+
+❓ **Should we add pet-to-pet dependency modeling?**
+- Pro: More realistic scheduling
+- Con: Adds complexity; could harm system safety
+
+❓ **Should we learn from user feedback?**
+- Pro: System improves over time
+- Con: Requires persistent storage; privacy concerns
+
+❓ **Should we support multiple owners?**
+- Pro: More use cases
+- Con: Coordination complexity; liability increases
+
+❓ **Should we add real-time adaptation?**
+- Pro: Handles mid-day changes
+- Con: Could encourage over-reliance on automation
+
+### Recommendations for Future Developers
+
+1. **Keep humans in the loop** - Don't remove the approval step
+2. **Explain trade-offs** - Users should know what constraints cost
+3. **Track outcomes** - Collect anonymized data (with consent) on whether schedules actually worked
+4. **Plan for abuse** - Consider how the system could be misused and prevent it
+5. **Listen to users** - Pet owners know their situation better than the AI
+
+---
+
 ## Data & Privacy
 
 ### Data Used During Runtime
