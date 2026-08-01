@@ -22,17 +22,51 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
-## Getting started
+## Quick Start
 
-### Setup
+### Setup (One-time)
 
 ```bash
+# 1. Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# 2. Activate virtual environment
+source .venv/bin/activate  # macOS/Linux
+# OR on Windows:
+.venv\Scripts\activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
-### Suggested workflow
+### Running the App
+
+```bash
+# Start the Streamlit web app (opens in browser)
+streamlit run app.py
+```
+
+Then open your browser to `http://localhost:8501` and start scheduling!
+
+### Running Tests
+
+```bash
+# Run all tests (46 total)
+pytest
+
+# Run with coverage report
+pytest --cov
+
+# Run specific test file
+pytest tests/test_pawpal.py
+
+# Run with verbose output
+pytest -v
+```
+
+---
+
+## Development Workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
 2. Draft a UML diagram (classes, attributes, methods, relationships).
