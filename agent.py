@@ -166,6 +166,27 @@ class CareAgent:
                 adaptations.append(f"✓ Recorded health condition for {pet_name}: {condition}")
                 self.memory.pet_patterns[pet_name] = condition
 
+        if "task_time_update" in changes:
+            update_info = changes["task_time_update"]
+            pet_name = update_info.get("pet_name")
+            task_description = update_info.get("description")
+            preferred_time_slot = update_info.get("preferred_time_slot")
+            new_duration = update_info.get("new_duration")
+
+            task = None
+            for pet in self.owner.pets:
+                if pet.name == pet_name:
+                    task = next((t for t in pet.tasks if t.description == task_description), None)
+                    break
+
+            if task:
+                if preferred_time_slot:
+                    task.preferred_time_slot = preferred_time_slot
+                    adaptations.append(f"✓ Updated preferred time slot for '{task_description}' to {preferred_time_slot}")
+                if new_duration:
+                    task.duration = new_duration
+                    adaptations.append(f"✓ Updated duration for '{task_description}' to {new_duration} minutes")
+
         # Regenerate schedule after adaptations
         new_schedule = self.generate_intelligent_schedule()
 

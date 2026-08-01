@@ -114,3 +114,104 @@ Describe your app in numbered steps so a reader can follow along without watchin
 5. After the user creates schedule they can view todays tasks.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+
+
+
+
+
+
+
+
+#Project 4 README
+
+The project I decided to expand was the PawPal+ app which was project 3. The original system is Streamlit app that helps pet owners plan daily care tasks for their pets. The app was able to create and manage pet care tasks. The apps goals were intelligently schedule pet care tasks based on constraints and priorities.
+
+My expanded project does pretty much the same thing but it also accounts for changes like changes in health and the A.I system adapts and changes the schedule based on time constraint and change in the pet's health. The project matters because it automatically generates and organizes tasks into a plan that that is easy for the pet owner to follow.
+
+
+My architecture diagram shows the 4 stages in the system. The first being user input like owner information and their pets. While the system detects if everythig is valid like task duration. The second part is mainly just the A.I analyzes and generates the schedule for the pet owner based off the users input in stage 1. The third stage is the rescheduling stage incase a task can not be added due to time constraints which the system reschedules it to a later day. The fourth stage is when the plan is fully made and is presented to the user to than follow.
+
+
+
+# Steps to run my code 
+
+1) # Create a virtual environment
+python -m venv .venv
+
+# Activate it
+source .venv/bin/activate  # macOS/Linux
+# OR on Windows:
+.venv\Scripts\activate
+
+
+2) # Install required packages
+pip install -r requirements.txt
+
+
+3) # Start the Streamlit app
+streamlit run app.py
+
+
+Input:
+
+Owner name: Jordan
+Pet name: Mochi
+Species: dog
+Age: 2
+Sex: Male
+Tasks:
+Morning walk — duration 20 minutes — frequency daily
+Breakfast feeding — duration 10 minutes — frequency daily
+Play session — duration 30 minutes — frequency one-time
+Availability: 8am-8pm
+Resulting AI output:
+
+✅ AI schedule generated successfully!
+Metrics:
+Total Pets: 1
+Total Tasks: 3
+Available Hours: 12.0h
+Daily schedule:
+Morning walk — 08:00 AM - 08:20 AM — Pet: Mochi
+Breakfast feeding — 08:20 AM - 08:30 AM — Pet: Mochi
+Play session — 08:30 AM - 09:00 AM — Pet: Mochi
+AI explanation example:
+Task: Morning walk (20 min) for Mochi | Scheduled: 08:00 AM - 08:20 AM | Frequency: daily | Decision: Scheduled to fit Mochi's needs → Placed within owner availability window → Ordered by priority and recurrence
+Recommendation:
+✓ Schedule is optimal for current setup.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#
+
+I built this system this way beacuse I feel like it's as realistic as the app can be like I have a section added incase if the user forgot to mention if their pet has a health issue or they forgot to add a task so it is simple for the user to naviagate the app. The tradeoffs in this system is that it can't model resource limits like only one bath at a time and it also ignores task specific timing prefereneces.
+
+
+
+
+
+# 
+            46 passed in 0.02s 
+
+After adding and creating more tests my system passed all tests especially all 13 reliability tests so I know I have full trust that my system is reliable. 

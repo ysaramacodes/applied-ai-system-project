@@ -79,6 +79,8 @@ class Task:
     scheduled_end: Optional[datetime] = None
     assigned_to: Optional[str] = None
     notes: List[str] = field(default_factory=list)
+    priority: str = "medium"  # FIX 1: critical, high, medium, low
+    is_flexible_duration: bool = False  # FIX 5: allow flexible rounding
 
     def schedule(self, start_time: datetime, end_time: datetime) -> None:
         """Schedule the task for a time slot."""
@@ -185,7 +187,7 @@ class Owner:
     """Represents a pet owner."""
     name: str
     contact_info: str
-    availability: List[str] = field(default_factory=list)
+    availability: List[str] = field(default_factory=list)  # FIX 4: now supports multiple windows
     preferences: dict = field(default_factory=dict)
     pets: List[Pet] = field(default_factory=list)
 
@@ -717,20 +719,53 @@ class Scheduler:
                 continue
         return windows
 
-    def _round_to_nearest_15min(self, dt: datetime) -> datetime:
-        """Round a datetime to the nearest 15-minute increment."""
-        minutes = (dt.minute // 15) * 15
+    def _round_to_nearest_15min(self, dt: datetime, granularity: int = 15) -> datetime:
+        """Round a datetime to nearest increment (default 15 min). FIX 5: flexible rounding."""
+        minutes = (dt.minute // granularity) * granularity
         return dt.replace(minute=minutes, second=0, microsecond=0)
+
+    def _adjust_task_for_pet_health(self, task: Task) -> Task:
+        """FIX 3: Adjust task duration based on pet age and health. Return adjusted copy."""
+        if not task.pet:
+            return task
+
+        adjusted_duration = task.duration
+
+        # Senior pet adjustment (≥10 years): reduce activity by 20%
+        if task.pet.age >= 10 and task.description.lower() in ['walk', 'play', 'exercise', 'running']:
+            adjusted_duration = int(task.duration * 0.8)
+
+        # Health condition adjustments
+        if task.pet.health_conditions:
+            if any(cond.lower() in ['arthritis', 'joint', 'limping', 'injury'] for cond in task.pet.health_conditions):
+                adjusted_duration = int(task.duration * 0.7)
+            if any(cond.lower() in ['heart', 'cardiac'] for cond in task.pet.health_conditions):
+                adjusted_duration = int(task.duration * 0.6)
+
+        # Create new task with adjusted duration
+        if adjusted_duration != task.duration:
+            adjusted = Task(
+                description=task.description,
+                time=task.time,
+                duration=adjusted_duration,
+                frequency=task.frequency,
+                completion_status=task.completion_status,
+                pet=task.pet,
+                id=task.id,
+                preferred_time_slot=task.preferred_time_slot,
+                scheduled_start=task.scheduled_start,
+                scheduled_end=task.scheduled_end,
+                priority=task.priority,
+                is_flexible_duration=task.is_flexible_duration
+            )
+            return adjusted
+        return task
 
     def _calculate_slot_confidence(self, task: Task, has_conflict: bool,
                                    has_preferred_time: bool, is_within_availability: bool) -> ConfidenceScore:
         """Calculate confidence score for a scheduling decision.
 
-        Factors considered:
-        - No conflicts (high confidence boost)
-        - Preferred time honored (medium boost)
-        - Within availability (baseline requirement)
-        - Task recurrence (recurring = slightly higher confidence)
+        FIX 2: Priority-dependent weights for critical vs optional tasks.
         """
         factors = {}
         base_score = 0.5
@@ -742,12 +777,14 @@ class Scheduler:
             factors["availability"] = -0.2
             base_score -= 0.2
 
+        # FIX 2: Weight conflicts heavier for critical tasks
+        conflict_weight = {"critical": 0.5, "high": 0.35, "medium": 0.3, "low": 0.2}.get(task.priority, 0.3)
         if not has_conflict:
-            factors["no_conflict"] = 0.3
-            base_score += 0.3
+            factors["no_conflict"] = conflict_weight
+            base_score += conflict_weight
         else:
-            factors["conflict"] = -0.3
-            base_score -= 0.3
+            factors["conflict"] = -conflict_weight
+            base_score -= conflict_weight
 
         if has_preferred_time:
             factors["preferred_time"] = 0.15
@@ -759,7 +796,7 @@ class Scheduler:
 
         final_score = max(0.0, min(1.0, base_score))
 
-        reasoning = f"Scheduled {task.description} with confidence {final_score:.2f}"
+        reasoning = f"Scheduled {task.description} (priority: {task.priority}) with confidence {final_score:.2f}"
         if not has_conflict:
             reasoning += " (no conflicts)"
         if has_preferred_time:
@@ -850,12 +887,24 @@ class Scheduler:
     def schedule(self, pet_name: Optional[str] = None, include_completed: bool = False) -> Schedule:
         """Generate a daily schedule of pet tasks for the owner.
 
-        Tasks are retrieved, ordered, and placed into slots using intelligent spacing.
-        High-priority and recurring tasks are spaced optimally throughout the day to
-        minimize conflicts.
+        FIX 1: High-priority tasks scheduled first
+        FIX 3: Tasks adjusted for pet age/health
+        FIX 4: Supports multiple availability windows
         """
         self.tasks = self.retrieve_tasks()
         organized_tasks = self.organize_tasks(pet_name=pet_name, include_completed=include_completed)
+
+        # FIX 3: Apply health-based adjustments to all tasks
+        adjusted_tasks = []
+        for task in organized_tasks:
+            adjusted = self._adjust_task_for_pet_health(task)
+            adjusted_tasks.append(adjusted)
+        organized_tasks = adjusted_tasks
+
+        # FIX 1: Sort by priority first (critical before medium before low)
+        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        organized_tasks = sorted(organized_tasks, key=lambda t: priority_order.get(t.priority, 2))
+
         plan = Schedule(owner=self.owner, availability=self.availability)
 
         recurring_by_pet = self._group_recurring_tasks(organized_tasks)
