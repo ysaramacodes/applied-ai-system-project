@@ -9,7 +9,7 @@
 | **Type** | Intelligent Task Scheduling Agent |
 | **Framework** | Python + Streamlit |
 | **Release Date** | August 2026 |
-| **Status** | Production Ready |
+| **Status** | Beta (Ready for personal use; needs safeguards for production) |
 
 ---
 
@@ -18,6 +18,34 @@
 **PawPal+** is an AI-powered pet care scheduling assistant that helps busy pet owners plan daily care activities for their pets. The system intelligently schedules tasks (walks, feeding, grooming, play, medication, etc.) based on owner availability, pet needs, and constraints.
 
 **Core Capability:** Generate optimized daily pet care schedules that respect constraints, prevent conflicts, and provide explanations for every decision.
+
+---
+
+## ⚠️ CRITICAL WARNING
+
+**This system can be misused. Read before using:**
+
+🔴 **PawPal+ is a SCHEDULING TOOL, not a pet care system.** It generates plans but cannot:
+- Verify you actually care for your pet
+- Prevent medication interactions or safety issues
+- Detect or prevent pet neglect
+- Replace veterinary judgment
+
+🔴 **DO NOT use this as proof of pet care.** Creating a schedule is NOT the same as providing care. Courts and authorities will compare:
+- What you claimed to do (this schedule)
+- Vet visit records (actual proof)
+- Pet's health condition (visible evidence)
+- Witness testimony (did neighbors see pet cared for?)
+
+🔴 **DO NOT rely on confidence scores for medication timing.** A 100% score means "fits in the schedule," NOT "safe for your pet." Always verify with your vet.
+
+🔴 **DO NOT ignore unmet tasks.** If the system says tasks won't fit, you may need:
+- More time available
+- Fewer tasks
+- Professional help (pet sitter, doggy daycare)
+- Not less care
+
+**Using this system to justify inadequate pet care is animal cruelty and potentially fraud.**
 
 ---
 
@@ -42,6 +70,11 @@
 - ❌ Fully autonomous execution without oversight
 - ❌ Real-time emergency response
 - ❌ Commercial pet facility management
+- ❌ Medication safety validation (no drug interaction checking)
+- ❌ Multi-owner coordination (single owner per session only)
+- ❌ Proof of pet care compliance (can be falsified)
+- ❌ Legal documentation of care (requires human verification)
+- ❌ Preventing pet neglect (system can be misused to justify inadequate care)
 
 ---
 
@@ -72,15 +105,17 @@
 
 ### Quality Metrics
 
-| Metric | Performance |
-|--------|-------------|
-| **Test Pass Rate** | 100% (46/46) |
-| **Task Success Rate** | ≥80% |
-| **Conflict Prevention** | 100% |
-| **Constraint Compliance** | 100% |
-| **Avg Confidence Score** | 85% |
-| **Determinism** | ✅ Verified |
-| **Reliability Rating** | ⭐⭐⭐⭐⭐ (5 stars) |
+| Metric | Performance | Notes |
+|--------|-------------|-------|
+| **Test Pass Rate** | 100% (46/46) | Tests cover happy-path scenarios only |
+| **Scheduling Determinism** | ✅ Verified | Same inputs always produce same output |
+| **Conflict Prevention (same pet)** | 100% | Within single-pet scope only |
+| **Availability Enforcement** | 100% | For valid availability strings |
+| **Health Keyword Matching** | ⚠️ 85% | Handles common condition variations |
+| **Medication Safety** | ❌ 0% | No validation for drug interactions |
+| **Execution Verification** | ❌ 0% | Cannot verify tasks actually happened |
+| **Misuse Prevention** | ❌ Low | Vulnerable to "AI said it was okay" defense |
+| **Overall Reliability Rating** | ⭐⭐⭐ (3 stars) | Good for scheduling, limited for pet health |
 
 ### Example Performance
 
@@ -133,24 +168,57 @@ Schedule:
 
 ## Limitations
 
+### Critical Limitations (Safety-Related)
+
+⚠️ **These are fundamental gaps that affect pet health and safety:**
+
+1. **NO Medication Safety Checking**
+   - Cannot validate medication timing, spacing, or food interactions
+   - Can schedule medication immediately before/after feeding (unsafe)
+   - No drug interaction database
+   - **Workaround:** Always verify medication schedules with your vet
+
+2. **NO Execution Verification**
+   - System cannot verify tasks actually happened
+   - Owner can show AI-generated schedule without following it
+   - Cannot detect "AI-justified neglect"
+   - **Workaround:** Keep logs, photos, or vet visit records
+
+3. **NO Multi-Pet Owner Constraints**
+   - Allows two pets' tasks to overlap (assumes owner can handle both simultaneously)
+   - Cannot model shared pet care (roommates, pet sitters)
+   - **Workaround:** Manually verify owner can execute overlapping tasks
+
+4. **NO Task Dependencies**
+   - Cannot express "medication before food" or "grooming before activity"
+   - Each task scheduled independently
+   - **Workaround:** Manually adjust task times or add delays
+
+5. **Input Validation Too Permissive**
+   - Accepts invalid availability strings (e.g., "8-20" is ambiguous)
+   - Silently drops overnight windows (e.g., "10pm-6am")
+   - **Workaround:** Carefully verify availability was entered correctly
+
 ### System Constraints
 
-1. **Single Owner Model**: One owner per session
-2. **One-Day Planning**: Schedules for single day only
-3. **No Real-Time Adaptation**: Manual adjustments needed
-4. **Task Duration**: 1-240 minutes only
-5. **Single Availability Window**: Contiguous time block only
-6. **Pet Capacity**: Tested up to 3 pets
-7. **No Task Dependencies**: Each task scheduled independently
+1. **Single Owner Model**: One owner per session (no shared coordination)
+2. **One-Day Planning**: Schedules for single day only (no weekly templates)
+3. **No Real-Time Adaptation**: Manual adjustments needed for mid-day changes
+4. **Task Duration**: 1-240 minutes only (no all-day tasks)
+5. **Availability Parsing**: Limited to simple time ranges (no split windows like "8am-12pm, 6pm-8pm")
+6. **Pet Capacity**: Tested up to 3 pets (untested at higher counts)
+7. **Task Ordering Bias**: Recurring task order affects scheduling placement
+8. **Health Keyword Matching**: May miss less common condition descriptions
 
 ### Known Edge Cases
 
-| Edge Case | Behavior |
-|-----------|----------|
-| **Overbooked Schedule** | Marks excess as unmet with suggestions |
-| **Tight Availability** | Leaves tasks unscheduled, provides warnings |
-| **Conflicting Tasks** | Auto-reschedules within 7 days |
-| **Same Start Time** | Chains with 10-minute buffer |
+| Edge Case | Behavior | Concern |
+|-----------|----------|---------|
+| **Overbooked Schedule** | Marks excess as unmet with suggestions | Some critical tasks may not fit |
+| **Tight Availability** | Leaves tasks unscheduled, provides warnings | May cut necessary care short |
+| **Health Condition Variants** | Matches common keywords but not all variations | Health adjustments may not apply |
+| **Medication Timing** | Schedules without medication safety validation | Could cause drug interaction issues |
+| **Owner Overlap** | Allows same-pet tasks to overlap with different owners | Assumes owner can multitask |
 
 ---
 
@@ -184,27 +252,47 @@ Schedule:
 
 ## Confidence Scoring Guide
 
+### What Confidence ACTUALLY Measures
+
+**Important:** Confidence scores measure **scheduling feasibility**, NOT pet safety or whether the owner will actually complete the task.
+
+A 100% confidence score means:
+- ✅ Task fits in available time
+- ✅ No conflicts with other pet tasks
+- ✅ Honors preferred timing if specified
+- ❌ NOT: "Safe for the pet"
+- ❌ NOT: "Owner will actually do it"
+- ❌ NOT: "Medically appropriate"
+
 ### How It Works
 
-Each task scores 0-1 based on factors:
+Each task scores 0-1 based on objective scheduling factors:
 
-| Factor | Weight | Meaning |
-|--------|--------|---------|
-| No Conflicts | +0.30 | Doesn't overlap others |
-| Availability | +0.20 | Within available hours |
-| Preferred Time | +0.15 | Honors user preference |
-| Recurring | +0.05 | Predictable task |
+| Factor | Weight | What It Means |
+|--------|--------|----------------|
+| No Conflicts | +0.30 | Doesn't overlap other tasks for same pet |
+| Within Availability | +0.20 | Scheduled during owner's available hours |
+| Preferred Time Honored | +0.15 | Matches owner's stated preference |
+| Recurring Task | +0.05 | Predictable frequency |
 
 ### Interpretation
 
-| Score | Meaning | Action |
-|-------|---------|--------|
-| **100%** | Perfect | ✅ Trust it |
-| **85-99%** | Excellent | ✅ Good to go |
-| **70-84%** | Good | 🟡 Review |
-| **50-69%** | Fair | ⚠️ Check details |
-| **<50%** | Poor | ❌ Reconsider |
-| **Unmet** | Not scheduled | 🔴 Adjust |
+| Score | Scheduling Quality | What You Should Do |
+|-------|---|---|
+| **100%** | Perfect fit | ✅ Can use for planning |
+| **85-99%** | Excellent fit | ✅ Good to go |
+| **70-84%** | Good fit | 🟡 Review with vet |
+| **50-69%** | Fair fit | ⚠️ Verify with vet |
+| **<50%** | Poor fit | ❌ Redesign schedule |
+| **Unmet (0%)** | Not scheduled | 🔴 Adjust availability or tasks |
+
+### Critical Caveat
+
+**High confidence ≠ Safe for pet. Always verify with your veterinarian, especially for:**
+- Medication timing and spacing
+- Activity level for health conditions
+- Feeding schedules with specific medications
+- Senior or injured pets
 
 ---
 
@@ -217,16 +305,40 @@ Each task scores 0-1 based on factors:
 - ✅ Transparent AI (explains all decisions)
 
 ### Potential Risks
-- ⚠️ Over-reliance without oversight
-- ⚠️ Not substitute for veterinary care
-- ⚠️ Poor scheduling could harm pet
 
-### Mitigations
-- ✅ Clear medical disclaimers
-- ✅ Human approval required
-- ✅ Error tracking and alerts
-- ✅ Health condition tracking
-- ✅ No persistent data storage
+**Critical Risks (NOT adequately mitigated):**
+- 🔴 **Pet Neglect with AI Justification** — Owner can show AI-generated schedule as proof they "tried," while actually neglecting pet. System cannot verify execution.
+- 🔴 **Medication Safety Issues** — No validation for dangerous drug interactions or contraindications.
+- 🔴 **Multi-Pet Conflicts** — System allows owner to be in two places at once; cannot detect impossible scheduling for one owner.
+- 🔴 **Misuse as Legal Defense** — Generated schedule could be misused in animal welfare cases to claim intent without actual care.
+
+**Moderate Risks (Partially mitigated):**
+- ⚠️ Over-reliance without oversight — Human-in-the-loop helps, but single button-click approval is minimal
+- ⚠️ Over-reliance on confidence scores — Scores measure scheduling fit, not pet safety
+- ⚠️ Poor scheduling harming pet — Can happen if owner follows bad schedule without vet oversight
+
+### What We CAN Mitigate
+- ✅ Scheduling conflicts (within single-pet scope)
+- ✅ Availability enforcement
+- ✅ Task duration accuracy
+- ✅ Transparency of reasoning
+- ✅ Deterministic, reproducible output
+
+### What We CANNOT Mitigate (Built-in Limitations)
+- ❌ Owner choosing not to follow the schedule
+- ❌ Medication safety without additional domain knowledge
+- ❌ Multi-owner coordination
+- ❌ Real-time mid-day emergencies
+- ❌ Pet-specific medical contraindications
+
+### Existing Safeguards
+- ✅ Clear medical disclaimers (in model card, not enforced in UI)
+- ✅ Human approval required (single checkbox)
+- ✅ Error logging (not monitored or escalated)
+- ✅ Health condition tracking (keyword-matched, not comprehensive)
+- ✅ No persistent data storage (privacy-preserving but no follow-up)
+
+**Honesty:** These safeguards are "advisory" not "preventive." They inform users but don't prevent misuse.
 
 ---
 
@@ -434,15 +546,34 @@ PawPal+ was built with **human-centric AI** at its core. Rather than creating a 
 ❌ Have complex task dependencies  
 ❌ Multiple household management  
 
-### Important Disclaimer
+### Legal Disclaimer
 
-⚠️ **PawPal+ is an AI planning assistant, NOT a veterinary service.**
+🔴 **PawPal+ is a scheduling tool, NOT a veterinary or pet care system.**
 
-- Always prioritize pet health and well-being
-- Consult veterinarian for medical concerns
-- Use as planning tool, not professional advice
-- Always supervise schedule execution
-- Human judgment overrides AI recommendations
+**What it is:**
+- ✅ A planning tool to help organize daily tasks
+- ✅ Transparent about scheduling decisions
+- ✅ Helpful for managing multiple pets
+
+**What it is NOT:**
+- ❌ Medical advice or diagnosis
+- ❌ Replacement for veterinary care
+- ❌ Proof you are caring for your pet
+- ❌ Safe from misuse or abuse
+- ❌ Suitable for pet care validation or legal documentation
+
+**Your responsibilities:**
+1. ✅ Always consult your vet for medication, health, and medical decisions
+2. ✅ Actually execute the schedule (creating it is not enough)
+3. ✅ Verify medication timing with vet, not AI confidence scores
+4. ✅ Monitor pet health independent of the schedule
+5. ✅ Seek emergency care if needed (AI cannot help)
+6. ✅ Never use this schedule as proof of care in legal/welfare situations
+
+**Criminal liability warning:**
+Creating a schedule and not following it while claiming the AI approved it is animal cruelty and potentially fraud. This system generates evidence of intent—be careful how you use it.
+
+**User judgment overrides AI recommendations.** If the AI says a schedule is optimal but you know your pet can't handle it, trust yourself.
 
 ---
 
@@ -530,4 +661,4 @@ The limits are that health adjustments only trigger on exact keyword matches. Th
 
 A sceneraio where my AI can be missused is when they see 90% confidence(scheduling fit) as it means medically safety. I can fix this by removing it and replacing it with warnings like "⚠️ Requires vet review" because also the owner has to go to a vet so they can't just use this to justify pet neglect.
 
-
+What suprised me while testing was how many hidden failures and how many tests I actually needed for this app.
